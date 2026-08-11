@@ -170,6 +170,10 @@ Regulatory angle: EU AI Act Art. 12-style trails need session correlation and hu
 
 Pack count (baseline + 6 domains) meets the 90-day “≥ 5 domains” metric.
 
+### 2026-08-11 — Industry-track working paper
+
+Drafted *Policy Beside the Data* (`paper/db-policy-for-agents.md` + ACM LaTeX) for **CIDR 2027** (6 pages, Jan 2027 Amsterdam) with VLDB/SIGMOD 2027 industrial as the 12-page follow-on. Core claim: the “DB policy is slow” objection conflates unindexed RLS (row path) with once-per-tool `evaluate()` (<0.2% of an LLM loop). Survey finds no equivalent agent-native PG extension (closest: pgauthz, Dogwood, MCP regex servers).
+
 ### Next analysis probes
 
 - [x] Survey managed Postgres providers’ extension allowlist processes (initial pass: RDS, Neon, Supabase, Aiven/Crunchy, CNPG/OCI).

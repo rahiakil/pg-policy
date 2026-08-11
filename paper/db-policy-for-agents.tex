@@ -1,0 +1,196 @@
+\documentclass[sigconf,review]{acmart}
+
+\settopmatter{printfolios=true}
+\acmConference[CIDR '27]{Conference on Innovative Data Systems Research}{January 24--27, 2027}{Amsterdam, The Netherlands}
+
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  backgroundcolor=\color{gray!8}
+}
+
+\title{Policy Beside the Data: An In-Database Control Plane for Agentic Workloads}
+\author{Parag Paul}
+\affiliation{%
+  \institution{Agentic Memory Foundation}
+}
+\email{parag@rigai.co}
+
+\renewcommand{\shortauthors}{Paul}
+
+\begin{abstract}
+AI agents have become a new class of database client: they invent SQL at runtime, chain tools through MCP, and often share a service account. Classical privileges and row-level security (RLS) answer \emph{which rows}, not \emph{which tool, in which session, after which prior acts}. We survey equivalent mechanisms---Postgres/SQL Server RLS, Oracle VPD, Cedar, Dogwood, Rego, Polar, Zanzibar/OpenFGA, pgauthz, MCP regex firewalls---and find no agent-native policy language packaged as a PostgreSQL extension. We present \textbf{pg\_policy} and \textbf{APL}, a small total language evaluated inside PostgreSQL, with layered guardrails (GRANT $\rightarrow$ RLS $\rightarrow$ \texttt{evaluate()} $\rightarrow$ model filters). We disentangle two costs the ``it will slow queries'' objection conflates: per-row RLS on unindexed columns (3--8$\times$ in published pgbench; $\approx$2\% p95 once indexed) versus once-per-tool PDP evaluation (our APL matcher is 16--263\,\textmu s p50 for 3--200 policies; a conservative same-connection PL/pgSQL+audit envelope is 0.8--1.5\,ms, $<$0.2\% of a typical 800\,ms LLM tool loop). A sensitivity cost model shows expected breach loss dominating millisecond taxes. The prescription is architectural: index RLS for rows; evaluate APL for tools; never put tool policy on the hot row path.
+\end{abstract}
+
+\keywords{PostgreSQL, row-level security, agentic AI, authorization, policy languages, MCP}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+PostgreSQL spent three decades optimizing for a human-shaped client. Agentic systems invert that contract: a prompt becomes schema discovery, multi-join SQL, CSV export, and a sibling agent's tools---none reviewed by a developer. RAG already showed that relevance is not authorization; tool-using agents expand the surface further~\cite{securing-the-agent-2026,aws-agent-mesh}.
+
+Two camps argue past each other. One keeps policy in sidecars (OPA, Cedar) and MCP process filters, citing RLS planner surprises. The other notes that any check not in the server can be walked around---the same lesson as forgotten \texttt{WHERE tenant\_id} predicates. Both are half right. Per-row policy on unindexed columns \emph{is} expensive. Agents \emph{will} talk to the database. The mistake is treating ``policy in the database'' as one mechanism. We split planes:
+
+\begin{description}
+\item[A --- data isolation] Which rows exist? \texttt{GRANT} + RLS / VPD.
+\item[B --- agent/tool control] May this agent call this tool, given session history? APL / \texttt{pg\_policy.evaluate()}.
+\item[C --- model/content] Is the prompt/output allowed? External guardrails.
+\end{description}
+
+Plane~B is what production MCP Postgres servers reinvent in Node (read-only transactions, row caps, DDL regexes, denial logs)~\cite{safe-postgres-mcp,pgguard-mcp,postgres-mcp-pro}. Those are policies. They should be data next to RLS.
+
+\textbf{Contributions:} (1)~a survey of in-DB and adjacent policy systems against agentic requirements; (2)~APL and pg\_policy~\cite{pgpolicy} as an industrial artifact; (3)~latency and expected-loss analysis that separates RLS row-path cost from once-per-tool PDP cost; (4)~SQL examples and domain packs.
+
+This is a systems/industry paper: an open PGXS extension and v0.1 measurements, not a claim that APL replaces Cedar's SMT analyzer~\cite{cedar2024}.
+
+\section{What agents need that RLS does not provide}
+
+Agents require tool identity (\texttt{execute\_sql} vs.\ \texttt{export\_csv}), argument constraints, session memory (budgets, approvals), soft guidance (obligations), graduated enforcement (\texttt{log\_only}$\rightarrow$\texttt{enforce}), and audit that names a human \emph{and} an agent~\cite{eu-ai-act}. RLS cannot express ``this MCP tool may not run DDL'' without putting that predicate on the \emph{row} path---the design error the performance camp rightly fears.
+
+\section{Survey: is there an equivalent?}
+
+\textbf{Short answer: no complete equivalent.} Partials are rich.
+
+\paragraph{Plane A (in-DB rows/columns).}
+PostgreSQL RLS~\cite{pg-rls}, Oracle VPD/\texttt{DBMS\_RLS} and RAS~\cite{oracle-vpd}, SQL Server RLS~\cite{mssql-rls}, IBM LBAC. VPD's lesson: the engine rewrites statements so clients cannot forget the predicate. None speak tools or sessions.
+
+\paragraph{Policy-as-code sidecars.}
+OPA/Rego~\cite{opa}; Cedar~\cite{cedar2024}; Dogwood (Cedar + temporal, agent sequences)~\cite{dogwood2026}; Sentinel (graded modes)~\cite{sentinel}; Oso Polar (can emit SQL fragments)~\cite{oso-polar}. Dogwood is the closest \emph{linguistic} relative; it is not \texttt{CREATE EXTENSION}.
+
+\paragraph{Relationship engines.}
+Zanzibar/SpiceDB/OpenFGA~\cite{zanzibar2019,spicedb,openfga} excel at ``user is viewer of document'' and often \emph{use} Postgres as a store while remaining a second operational plane.
+
+\paragraph{Postgres cousins.}
+pgauthz + optional pg\_cel (in-PG ABAC)~\cite{pgauthz,pg-cel}; pg\_command\_fw (DDL GUC firewall)~\cite{pg-command-fw}. Closest priors; neither is an agent-native language with guidance, temporal quotas, and packs.
+
+\paragraph{MCP servers.}
+After \texttt{COMMIT; DROP} bypasses in the deprecated reference Postgres MCP, serious servers independently reimplemented Plane~B in-process. That duplication is the industrial smell.
+
+\begin{table}[t]
+\centering
+\caption{Who covers agentic DB policy? (\cmark{}~=~yes, $\sim$~=~partial.)}
+\label{tab:survey}
+\scriptsize
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+System & In-DB & Tools & Temporal & Guidance \\
+\midrule
+PG / SQL Server RLS, Oracle VPD & \cmark & & & \\
+Cedar & & \cmark & & \\
+Dogwood & & \cmark & \cmark & $\sim$ \\
+OPA/Rego & sidecar & $\sim$ & $\sim$ & $\sim$ \\
+Zanzibar / OpenFGA & store & $\sim$ & & \\
+pgauthz & \cmark & & & \\
+MCP regex firewalls & process & \cmark & & $\sim$ \\
+\textbf{pg\_policy} & \cmark & \cmark & \cmark & \cmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Layered guardrails}
+
+\begin{lstlisting}[language=SQL,caption={Plane A: indexed RLS (row path).}]
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_iso ON orders
+  USING (tenant_id = current_setting('app.tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
+CREATE INDEX ON orders (tenant_id);
+\end{lstlisting}
+
+\begin{lstlisting}[language=SQL,caption={Plane B: once-per-tool APL (not a row qual).}]
+CREATE EXTENSION pg_policy;
+SELECT pg_policy.set_setting('enforcement_mode', 'log_only');
+SELECT pg_policy.upsert_policy('block_ddl', $apl$
+forbid
+  principal agent "langgraph:analytics"
+  action tool "execute_sql"
+  when { context.statement_type in ["DROP","TRUNCATE","ALTER","CREATE"] }
+  reason "No DDL"
+$apl$);
+SELECT pg_policy.evaluate(
+  'agent','langgraph:analytics','tool','execute_sql',
+  'table','public.orders',
+  '{"statement_type":"DROP","acting_for":"user:42","tenant_id":"acme"}'::jsonb,
+  'thread-abc');
+\end{lstlisting}
+
+\textbf{Invariant:} do not implement Plane~B as \texttt{USING} clauses. Fail-closed PEP sentinels: missing \texttt{acting\_for}/\texttt{tenant\_id}$\rightarrow$\texttt{"unset"}; missing \texttt{approved}$\rightarrow$\texttt{"false"}. If \texttt{evaluate()} is skipped: read-only role, \texttt{default\_transaction\_read\_only}, no \texttt{BYPASSRLS}.
+
+APL v0.1 is dollar-quoted because extensions cannot extend \texttt{gram.y}. Effects \texttt{permit}/\texttt{forbid}/\texttt{guide}; deny-overrides; modes \texttt{log\_only}/\texttt{guide}/\texttt{enforce}. Domain packs (analytics, support, fintech, healthcare, devops, multi-agent) load via SQL after a universal baseline.
+
+\section{Slowdown objection}
+
+\subsection{Two costs}
+
+RLS injects security quals into the plan~\cite{bytebase-rls}. Unindexed policy columns yield 3--8$\times$ pgbench regressions~\cite{rls-supabase-pgbench}; wrapping \texttt{auth.uid()} as \texttt{(SELECT auth.uid())} is mandatory. With an index, a 1M-row study reports $\approx$2\% p95 versus an equivalent manual \texttt{WHERE}~\cite{rls-devto-2026}. That literature describes \emph{row} policy.
+
+\texttt{evaluate()} is specified to run \emph{once per tool}. Putting it in a per-row SQL function would be operator error.
+
+\subsection{Experiment A: matcher microbench}
+
+A Python oracle of v0.1 matching (globs, \texttt{eq}/\texttt{in}, temporal counts, deny-overrides) on the baseline pack padded with non-matching policies, 8000 iterations (CPython 3.9):
+
+\begin{table}[t]
+\centering
+\caption{APL matcher latency (in-process oracle, not SPI).}
+\label{tab:bench}
+\scriptsize
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+Policies & p50 (\textmu s) & p95 (\textmu s) & p99 (\textmu s) \\
+\midrule
+3 & 16.0 & 59.6 & 136.7 \\
+25 & 43.4 & 120.8 & 187.8 \\
+50 & 83.3 & 246.9 & 565.6 \\
+200 & 263.4 & 472.0 & 796.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We quote a conservative PostgreSQL envelope for v0.1 on the \emph{same connection}: 0.8\,ms evaluate+log, 1.5\,ms with extra audit. Roadmap pgrx/Cedar targets microsecond-class eval~\cite{cedar2024}.
+
+\subsection{Experiment B: versus the agent loop}
+
+An 800\,ms model+tool step dwarfs PDP cost: 0.8\,ms is 0.10\% of the loop; a cross-AZ OPA hop ($\sim$9\,ms) is 1.1\%. User-perceived latency is the model.
+
+\subsection{Experiment C: expected loss vs.\ latency tax}
+
+Sensitivity model (\textbf{not} actuarial): 10k tool calls/day, 4 attempted-incident opportunities/year, \$250k fully loaded if a bypass is realized. Bypass probabilities are ordinal (app filters $>$ regex MCP $>$ sidecar $>$ evaluate+RLS residual superuser misconfig). Compute tax of extra milliseconds at \$0.12/CPU-hour is noise ($<$\$2/yr). Expected loss spans \$80k (app-only at 8\% P(bypass)) to \$100 (evaluate+RLS at 0.01\%). Even if app-only P(bypass) is 1\%, \$10k/yr still dominates. The industrial claim is the \emph{inequality}, not a specific ROI.
+
+\subsection{When in-DB policy does hurt}
+
+Unindexed RLS; many OR-combined permissive policies; non-\texttt{LEAKPROOF} functions blocking pushdown; calling \texttt{evaluate()} per row; synchronous HTTP from triggers. pg\_policy's API is a tool-level function, not a row trigger.
+
+\section{Value that is not latency}
+
+Co-location yields one trust boundary, one tenant GUC for RLS and APL, session events without Redis, SQL-queryable \texttt{decision\_log}, pack portability, and gateway independence. The database is the source of truth because the rows, tenants, and side effects already live there---not because PL/pgSQL beats Cedar on a microbenchmark.
+
+\section{Threats to validity}
+
+Oracle matcher $\neq$ PL/pgSQL wall time (hence the pessimistic envelope). P(bypass) is assumed. v0.1 lacks Dogwood's \texttt{formerly}/\texttt{since} and Cedar's SMT. Superusers bypass RLS. Managed allowlists (Neon, RDS) currently block arbitrary extensions; PGXN is the open path~\cite{pgxn}.
+
+\section{Conclusions}
+
+Agents make the database a tool. Index RLS for rows. Evaluate APL once per tool. Do not accept ``the database is too slow for policy'' without asking \emph{which plane}. Artifact: \url{https://github.com/rahiakil/pg-policy}.
+
+\begin{acks}
+Working paper of the Agentic Memory Foundation. pg\_policy is open source under the PostgreSQL License.
+\end{acks}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

@@ -2,9 +2,10 @@
 *.o
 *.so
 *.bc
-results/
+/results/
 tmp_check/
 log/
+!experiments/results/
 .deps/
 
 # Editor / OS

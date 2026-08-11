@@ -36,7 +36,7 @@ AI agents increasingly hold database credentials and tool access. Classical priv
 
 Industry systems (Cedar, OPA/Rego, OpenFGA, Dogwood) solve pieces of this outside the database. `pg_policy` brings an agent-native policy layer **into** PostgreSQL so policies, session events, decision logs, and data share one trust boundary.
 
-**Start here for the argument:** [Why databases must govern agents](docs/research/07-value-thesis.md) · [Use cases](docs/usecases/README.md) · [Onboard in 30 minutes](docs/onboarding/README.md) · [Load a policy pack](doc/packs.md)
+**Start here for the argument:** [Why databases must govern agents](docs/research/07-value-thesis.md) · [Industry-track working paper](paper/db-policy-for-agents.md) · [Use cases](docs/usecases/README.md) · [Onboard in 30 minutes](docs/onboarding/README.md) · [Load a policy pack](doc/packs.md)
 
 Thorough research lives in [`docs/research/`](docs/research/).
 

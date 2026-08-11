@@ -1,5 +1,12 @@
 # Documentation index
 
+## Industry paper (CIDR / VLDB–SIGMOD)
+
+- [Working paper (Markdown)](../paper/db-policy-for-agents.md)
+- [LaTeX (ACM sigconf)](../paper/db-policy-for-agents.tex)
+- [Venue plan](../paper/README.md)
+- [Experiments](../experiments/)
+
 ## User-facing
 
 - [README](../README.md)
