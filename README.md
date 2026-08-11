@@ -143,6 +143,7 @@ Design decisions: [`docs/design/`](docs/design/) · ADRs: [`docs/adr/`](docs/adr
 | [Agentic guardrails](docs/research/03-agentic-ai-guardrails.md) | Guardrail vs guidance |
 | [Industry analysis](docs/research/04-industry-analysis.md) | Living market notes |
 | [Positioning](docs/research/05-competitive-positioning.md) | Category & moat |
+| [Marketplace playbook](docs/research/06-marketplace-playbook.md) | PGXN → managed clouds |
 | [Roadmap](docs/roadmap.md) | Toward PGXN / 1.0 |
 
 ---

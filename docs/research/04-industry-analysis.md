@@ -132,15 +132,42 @@ OpenID **AuthZEN Authorization API 1.0** standardizes PEP↔PDP JSON:
 
 Roadmap: optional thin HTTP PDP that translates AuthZEN → SQL `evaluate()` so MCP gateways can treat Postgres as a standards-shaped PDP without learning APL first.
 
+### 2026-08-10 — MCP Postgres tool ecosystem
+
+The MCP Postgres landscape validates `pg_policy`’s wedge:
+
+| Observation | Evidence | Product implication |
+| --- | --- | --- |
+| Reference `@modelcontextprotocol/server-postgres` deprecated / unsafe | Documented `COMMIT; DROP…` bypasses; still widely downloaded historically | Host-side regex is insufficient; engine + policy needed |
+| Safe MCP servers re-implement policy in Node | `safe-postgres-mcp`, `pgguard-mcp`, `postgres-mcp` (Crystal DBA), etc. | **Duplicated** allowlists, row caps, audit logs outside the DB |
+| Common tools | `query` / `execute_sql`, `list_tables`, `describe_table`, `explain_query`, `sample_rows` | First-class APL action ids for these tool names |
+| Common guardrails | READ ONLY tx, statement_timeout, max_rows, single-statement, AST parse | Map to context keys + `guide` obligations (`max_rows`) + forbid DDL |
+| Audit of denials | pgguard records refusals | Aligns with `decision_log` |
+| RLS + SET ROLE / JWT claims | pgguard / Supabase patterns | Keep RLS complement docs central |
+
+**Wedge narrative for MCP authors:** stop hard-coding row caps and tool allowlists in every MCP server—call `pg_policy.evaluate` so policy lives next to RLS and survives gateway swaps.
+
+Suggested starter policy pack (roadmap example):
+
+```apl
+forbid principal agent "*" action tool "execute_sql"
+  when { context.statement_type in ["DROP","TRUNCATE","ALTER","CREATE","GRANT","REVOKE"] }
+
+guide principal agent "*" action tool "execute_sql"
+  max_rows 500
+  advice "Prefer explain_query for large scans"
+```
+
 ### Next analysis probes
 
 - [x] Survey managed Postgres providers’ extension allowlist processes (initial pass: RDS, Neon, Supabase, Aiven/Crunchy, CNPG/OCI).
 - [ ] Benchmark CEL vs pure SQL IR for 10k evaluate/s.
 - [x] Map AuthZEN request fields to `pg_policy.evaluate` JSON (sketch).
-- [ ] Interview-style synthesis: MCP DB tool schemas (Cursor, Claude, LangChain SQL tool).
+- [x] Interview-style synthesis: MCP DB tool schemas (safe-postgres-mcp, pgguard, postgres-mcp, deprecated reference).
 - [ ] Track PGXN v2 trunk/OCI readiness for binary distribution.
 - [ ] Deep-dive `pg_tle` viability as alternate packaging for RDS-class hosts.
 - [ ] Competitive watch: Dogwood releases, AgentCore Policy features, pgauthz CEL roadmap.
+- [ ] Draft reference MCP middleware snippet calling `pg_policy`.
 
 ---
 

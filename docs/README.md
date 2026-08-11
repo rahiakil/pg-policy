@@ -24,3 +24,4 @@
 3. [Agentic AI guardrails](research/03-agentic-ai-guardrails.md)
 4. [Industry analysis](research/04-industry-analysis.md)
 5. [Competitive positioning](research/05-competitive-positioning.md)
+6. [Marketplace playbook](research/06-marketplace-playbook.md)
