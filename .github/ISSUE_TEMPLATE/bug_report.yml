@@ -1,0 +1,24 @@
+name: Bug report
+about: Report incorrect policy evaluation or crashes
+title: ''
+labels: bug
+body:
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction SQL
+      description: Minimal SQL that demonstrates the issue
+    validations:
+      required: true
+  - type: input
+    id: pgver
+    attributes:
+      label: PostgreSQL version
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true

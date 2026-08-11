@@ -1,0 +1,23 @@
+# Build artifacts
+*.o
+*.so
+*.bc
+results/
+tmp_check/
+log/
+.deps/
+
+# Editor / OS
+.DS_Store
+*~
+*.swp
+.idea/
+.vscode/
+
+# Python / local tooling
+__pycache__/
+.venv/
+
+# Secrets
+.env
+*.pem

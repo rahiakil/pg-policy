@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  docs-and-meta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate META.json
+        run: python3 -m json.tool META.json > /dev/null
+      - name: Check required community files
+        run: |
+          for f in README.md LICENSE META.json CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md Changes AUTHORS; do
+            test -f "$f" || { echo "missing $f"; exit 1; }
+          done
+      - name: Check extension files
+        run: |
+          test -f pg_policy.control
+          test -f sql/pg_policy--0.1.0.sql
+          test -f Makefile
+
+  # Full installcheck requires a Postgres service image with matching PGXS.
+  # Enabled as an initial skeleton; expand matrix as packaging matures.
+  extension-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: APL examples present
+        run: ls examples/*.sql doc/*.md docs/research/*.md

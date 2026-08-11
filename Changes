@@ -1,0 +1,8 @@
+Revision history for pg_policy
+
+0.1.0  2026-08-10
+       * Initial public MVP: APL parser, policy catalog, evaluate API
+       * Session events + temporal count limits
+       * Guidance obligations (advice, prefer_tool, max_rows)
+       * Enforcement modes: log_only, guide, enforce
+       * Research docs, ADRs, examples, PGXN META.json
