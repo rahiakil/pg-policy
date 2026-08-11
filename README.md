@@ -36,7 +36,9 @@ AI agents increasingly hold database credentials and tool access. Classical priv
 
 Industry systems (Cedar, OPA/Rego, OpenFGA, Dogwood) solve pieces of this outside the database. `pg_policy` brings an agent-native policy layer **into** PostgreSQL so policies, session events, decision logs, and data share one trust boundary.
 
-Thorough research informing this design lives in [`docs/research/`](docs/research/).
+**Start here for the argument:** [Why databases must govern agents](docs/research/07-value-thesis.md) · [Use cases](docs/usecases/README.md) · [Onboard in 30 minutes](docs/onboarding/README.md) · [Load a policy pack](doc/packs.md)
+
+Thorough research lives in [`docs/research/`](docs/research/).
 
 ---
 
@@ -144,16 +146,28 @@ Design decisions: [`docs/design/`](docs/design/) · ADRs: [`docs/adr/`](docs/adr
 | [Industry analysis](docs/research/04-industry-analysis.md) | Living market notes |
 | [Positioning](docs/research/05-competitive-positioning.md) | Category & moat |
 | [Marketplace playbook](docs/research/06-marketplace-playbook.md) | PGXN → managed clouds |
+| [Value thesis](docs/research/07-value-thesis.md) | Why DB + agents need plane B |
+| [Capability backlog](docs/research/08-capability-backlog.md) | What to add next |
+| [Use cases](docs/usecases/README.md) | Analytics, support, fintech, health, … |
+| [Onboarding](docs/onboarding/README.md) | Universal path for every framework |
+| [Policy packs](doc/packs.md) | Drop-in APL templates |
 | [Roadmap](docs/roadmap.md) | Toward PGXN / 1.0 |
 
 ---
 
-## Examples
+## Examples & packs
+
+**Tutorials**
 
 - [`examples/01-basic-guardrails.sql`](examples/01-basic-guardrails.sql)
 - [`examples/02-agent-session-limits.sql`](examples/02-agent-session-limits.sql)
 - [`examples/03-guidance-policies.sql`](examples/03-guidance-policies.sql)
 - [`examples/04-rls-complement.sql`](examples/04-rls-complement.sql)
+- [`examples/05-mcp-tool-pack.sql`](examples/05-mcp-tool-pack.sql)
+
+**Domain packs** (baseline first, then one domain) — [`examples/packs/`](examples/packs/)
+
+**Python PEP** — [`examples/integrations/evaluate_middleware.py`](examples/integrations/evaluate_middleware.py)
 
 ---
 

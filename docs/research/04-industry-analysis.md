@@ -17,6 +17,10 @@
 | Extension distribution modernizing | PGXN v2, OCI trunks, CloudNativePG extension volumes | Ship classic PGXN first; track OCI later |
 | ReBAC + ABAC hybrids | OpenFGA conditions; Oso local SQL | Support attributes now; relationships next |
 | Observability of authz decisions | AuthZEN; decision logs in SaaS authz | First-class decision_log table |
+| MCP servers reimplement policy in-process | safe-postgres-mcp, pgguard, postgres-mcp | Packs + `evaluate()` as shared PDP |
+| Frameworks persist state in Postgres | LangGraph PostgresSaver | Same cluster should hold agent policy |
+| High-risk AI logging (EU AI Act Art. 12) | Aug 2026 enforcement milestone widely cited | `decision_log` + `acting_for` + sessions |
+| Multi-tenant RAG ≠ tool authz | ACM *Securing the Agent* (2026) | Plane B beside RLS |
 
 ---
 
@@ -158,6 +162,14 @@ guide principal agent "*" action tool "execute_sql"
   advice "Prefer explain_query for large scans"
 ```
 
+### 2026-08-10 — Use cases, packs, and “works for all”
+
+Published the [value thesis](07-value-thesis.md) (three-plane model), [ten use cases](../usecases/README.md), [universal onboarding](../onboarding/README.md), seven SQL packs, and a Python PEP with fail-closed sentinels (`acting_for`/`tenant_id`/`approved`).
+
+Regulatory angle: EU AI Act Art. 12-style trails need session correlation and human attribution — mapped to `open_session` + `context.acting_for`. Framework angle: LangGraph/CrewAI/MCP all can share one PDP because the contract is SQL.
+
+Pack count (baseline + 6 domains) meets the 90-day “≥ 5 domains” metric.
+
 ### Next analysis probes
 
 - [x] Survey managed Postgres providers’ extension allowlist processes (initial pass: RDS, Neon, Supabase, Aiven/Crunchy, CNPG/OCI).
@@ -167,7 +179,7 @@ guide principal agent "*" action tool "execute_sql"
 - [ ] Track PGXN v2 trunk/OCI readiness for binary distribution.
 - [ ] Deep-dive `pg_tle` viability as alternate packaging for RDS-class hosts.
 - [ ] Competitive watch: Dogwood releases, AgentCore Policy features, pgauthz CEL roadmap.
-- [ ] Draft reference MCP middleware snippet calling `pg_policy`.
+- [x] Draft reference MCP/Python middleware snippet calling `pg_policy`.
 
 ---
 
@@ -176,7 +188,7 @@ guide principal agent "*" action tool "execute_sql"
 | Metric | Target (90 days) |
 | --- | --- |
 | GitHub stars / meaningful issues | Community signal |
-| Example policy packs | ≥ 5 domains |
+| Example policy packs | ≥ 5 domains (**met**: 7 files) |
 | Compatible PG majors | 14–17 (then 18) |
 | Time-to-first-policy from README | < 10 minutes |
 | Decision log completeness | 100% of evaluate() calls |

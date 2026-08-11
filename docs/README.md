@@ -7,6 +7,10 @@
 - [APL language](../doc/language.md)
 - [Extension guide](../doc/pg_policy.md)
 - [Examples](../examples/)
+- [Policy packs](../doc/packs.md)
+- [Use cases](usecases/README.md)
+- [Onboarding](onboarding/README.md)
+- [Framework adapters](onboarding/integrations.md)
 
 ## Design
 
@@ -25,3 +29,5 @@
 4. [Industry analysis](research/04-industry-analysis.md)
 5. [Competitive positioning](research/05-competitive-positioning.md)
 6. [Marketplace playbook](research/06-marketplace-playbook.md)
+7. [Value thesis](research/07-value-thesis.md)
+8. [Capability backlog](research/08-capability-backlog.md)

@@ -41,5 +41,9 @@ SELECT pg_policy.evaluate(
 ## See also
 
 - [APL language reference](language.md)
+- [Policy packs](packs.md)
+- [Onboarding](../docs/onboarding/README.md)
+- [Use cases](../docs/usecases/README.md)
+- [Value thesis](../docs/research/07-value-thesis.md)
 - [Architecture & research](../docs/design/00-product-decision.md)
 - [Examples](../examples/)
