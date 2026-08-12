@@ -38,6 +38,6 @@ Hardening grants for least privilege are documented as examples in later release
 1. Load enabled policies matching principal/action/resource globs.
 2. Filter by context predicates and temporal predicates.
 3. Collect obligations from all matches.
-4. If any `forbid` matched → deny candidate; else if `permit` or `guide` → allow; else default (`permit` setting).
+4. If any `forbid` matched → deny candidate; else if `permit` or `guide` → allow; else default (`deny` setting).
 5. Apply enforcement mode (`log_only` / `guide` / `enforce`).
 6. Persist decision_log; optionally append session event.

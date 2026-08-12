@@ -74,7 +74,7 @@ def evaluate(
     resource_id: str = "*",
     context: dict[str, Any] | None = None,
     event_count: int = 0,
-    default_decision: str = "permit",
+    default_decision: str = "deny",
     mode: str = "enforce",
 ) -> dict[str, Any]:
     ctx = context or {}

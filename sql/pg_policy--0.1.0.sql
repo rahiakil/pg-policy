@@ -91,7 +91,7 @@ CREATE TABLE settings (
 
 INSERT INTO settings(key, value) VALUES
   ('enforcement_mode', 'log_only'),
-  ('default_decision', 'permit');
+  ('default_decision', 'deny');
 
 CREATE OR REPLACE FUNCTION get_setting(p_key text)
 RETURNS text
@@ -158,6 +158,15 @@ DECLARE
 BEGIN
   IF p_apl IS NULL OR btrim(p_apl) = '' THEN
     RAISE EXCEPTION 'APL document is empty';
+  END IF;
+
+  -- Fail closed: reject keywords the v0.1 grammar does not implement.
+  -- Silently dropping them would compile a weaker policy than the author wrote.
+  IF p_apl ~* '\munless\M'
+     OR p_apl ~* '\mformerly\M'
+     OR p_apl ~* '\msince\M' THEN
+    RAISE EXCEPTION
+      'APL contains unsupported keyword (fail-closed); v0.1 allows only the documented grammar';
   END IF;
 
   v_effect := lower(_apl_extract(p_apl, '^\s*(permit|forbid|guide)\b'));
@@ -250,7 +259,10 @@ BEGIN
           kv[1],
           jsonb_build_object('op', 'eq', 'value', to_jsonb(kv[2]::numeric))
         );
+        CONTINUE;
       END IF;
+      RAISE EXCEPTION
+        'APL when-clause has unsupported predicate (fail-closed): %', pair;
     END LOOP;
   END IF;
 
@@ -267,6 +279,9 @@ BEGIN
         'cmp', kv[3],
         'value', kv[4]::int
       );
+    ELSE
+      RAISE EXCEPTION
+        'APL temporal when-clause is not a supported count(...) form (fail-closed)';
     END IF;
   END IF;
 
@@ -309,7 +324,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION parse_apl(text) IS
-  'Parse a v0.1 APL document into JSON IR';
+  'Parse a v0.1 APL document into JSON IR (fail-closed on unsupported keywords/predicates)';
 
 --------------------------------------------------------------------------------
 -- Policy management
@@ -559,7 +574,7 @@ DECLARE
   has_guide boolean := false;
 BEGIN
   mode := coalesce(get_setting('enforcement_mode'), 'log_only');
-  default_decision := coalesce(get_setting('default_decision'), 'permit');
+  default_decision := coalesce(get_setting('default_decision'), 'deny');
   decision := default_decision;
 
   FOR rec IN
