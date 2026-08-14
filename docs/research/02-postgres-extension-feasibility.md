@@ -20,8 +20,8 @@
 | Intercept planning/execution | planner / executor hooks | Statement firewalls; rewrite; audit |
 | Background workers | BGWorker API | Session-budget reapers; async policy sync |
 | Custom types & operators | PGXS / pgrx | `agent_id`, policy decision types |
-| Functions / procedures | SQL, C, Rust | `pg_policy.evaluate(...)` |
-| GUCs | `DefineCustom*Variable` | `pg_policy.enforcement_mode` |
+| Functions / procedures | SQL, C, Rust | `pg_agent_policy.evaluate(...)` |
+| GUCs | `DefineCustom*Variable` | `pg_agent_policy.enforcement_mode` |
 | Shared preload | `_PG_init` | Register hooks early |
 | Catalog tables | extension scripts | Policy store, event log, obligations |
 
@@ -32,8 +32,8 @@
 ### 2.1 Function-first DSL (always ship this)
 
 ```sql
-SELECT pg_policy.upsert($apl$ ... $apl$);
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.upsert($apl$ ... $apl$);
+SELECT pg_agent_policy.evaluate(
   principal := 'agent:research',
   action    := 'tool:execute_sql',
   resource  := 'table:public.orders',
@@ -64,7 +64,7 @@ For policy:
 -- Conceptual (hook-augmented) — options on known statements
 CREATE POLICY ...; -- still native RLS
 -- Plus extension catalog via functions:
-SELECT pg_policy.attach_agent_guard('orders_select', 'agent:research');
+SELECT pg_agent_policy.attach_agent_guard('orders_select', 'agent:research');
 ```
 
 Cannot invent `CREATE AGENT POLICY` as a core token without a fork.
@@ -96,7 +96,7 @@ PL/V8 / PL/Python policies are flexible but expand the attack surface. Prefer a 
 └───────────────────────────┬─────────────────────────────────┘
                             │ SQL / protocol
 ┌───────────────────────────▼─────────────────────────────────┐
-│ pg_policy.evaluate / check / guide                          │
+│ pg_agent_policy.evaluate / check / guide                          │
 │  • catalog policies                                         │
 │  • session event log                                        │
 │  • obligations (rate limit remaining, advice)               │
@@ -109,13 +109,13 @@ PL/V8 / PL/Python policies are flexible but expand the attack surface. Prefer a 
                                     (data & DDL firewall)
 ```
 
-Agents that speak SQL should still face RLS. Agents that speak tools should call `pg_policy` before side effects. Gateways should do both.
+Agents that speak SQL should still face RLS. Agents that speak tools should call `pg_agent_policy` before side effects. Gateways should do both.
 
 ---
 
 ## 5. Security considerations for in-DB policy
 
-1. **Policy authors ≠ policy subjects.** Separate roles: `pg_policy_admin` vs agent runtime roles.
+1. **Policy authors ≠ policy subjects.** Separate roles: `pg_agent_policy_admin` vs agent runtime roles.
 2. **No `SECURITY DEFINER` footguns** without `search_path` pinning.
 3. **Default deny** for agent actions when any applicable restrictive policy exists.
 4. **Audit every decision** (allow, deny, guide) with request id / session id.
@@ -127,7 +127,7 @@ Agents that speak SQL should still face RLS. Agents that speak tools should call
 
 ## 6. Packaging & distribution feasibility
 
-| Channel | Requirement | Status for pg_policy |
+| Channel | Requirement | Status for pg_agent_policy |
 | --- | --- | --- |
 | GitHub | Excellent README, LICENSE, CI, docs | Design goal |
 | PGXN | `META.json`, semantic version, open license | Design goal |

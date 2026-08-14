@@ -4,7 +4,7 @@
     "incidents_year": 4.0,
     "loss_usd_per_realized_bypass": 250000.0,
     "llm_tool_loop_ms": 800.0,
-    "pg_policy_same_conn_ms": 0.8,
+    "pg_agent_policy_same_conn_ms": 0.8,
     "rls_indexed_overhead_pct": 0.02,
     "rls_unindexed_slowdown_x": 5.0
   },
@@ -34,7 +34,7 @@
       "extra_ms_vs_llm_loop_pct": 1.125
     },
     {
-      "architecture": "pg_policy_evaluate",
+      "architecture": "pg_agent_policy_evaluate",
       "p_bypass": 0.0005,
       "extra_ms_per_tool": 0.8,
       "expected_loss_usd_year": 500.0,
@@ -42,7 +42,7 @@
       "extra_ms_vs_llm_loop_pct": 0.1
     },
     {
-      "architecture": "pg_policy_plus_rls",
+      "architecture": "pg_agent_policy_plus_rls",
       "p_bypass": 0.0001,
       "extra_ms_per_tool": 1.0,
       "expected_loss_usd_year": 100.0,

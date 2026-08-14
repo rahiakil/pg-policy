@@ -1,4 +1,4 @@
-# Capability backlog: what else pg_policy should grow
+# Capability backlog: what else pg_agent_policy should grow
 
 **Last updated:** 2026-08-10  
 Prioritized from industry gaps (MCP, Dogwood, AuthZEN, EU AI Act, multi-agent frameworks).
@@ -17,7 +17,7 @@ Legend: **P0** = next minor · **P1** = 0.2/0.3 · **P2** = 1.0+ · **Out** = no
 | Temporal `formerly` / `since` / `sum` | P1 | Dogwood-class workflows (approve-then-transfer) |
 | CEL or Cedar condition backend | P1 | Analyzable expressions; pgrx |
 | Obligations: `require_approval`, `step_up_auth`, `redact_columns` | P1 | AuthZEN-style PEP instructions |
-| Policy tests in SQL (`SELECT pg_policy.assert_deny(...)`) | P0 | CI for packs |
+| Policy tests in SQL (`SELECT pg_agent_policy.assert_deny(...)`) | P0 | CI for packs |
 | Compile-to-RLS helpers | P1 | Generate `CREATE POLICY` from data-plane APL |
 | Partial eval / list-allowed-tools | P1 | AuthZEN search APIs; “what can this agent do?” |
 
@@ -47,7 +47,7 @@ Legend: **P0** = next minor · **P1** = 0.2/0.3 · **P2** = 1.0+ · **Out** = no
 | --- | --- | --- |
 | `ProcessUtility_hook` DDL firewall for agent roles | P1 | Defense if someone skips `evaluate()` |
 | Statement timeout / `default_transaction_read_only` recipes | P0 | Pack, not code |
-| Connection GUC `pg_policy.agent_id` | P1 | Implicit principal from session |
+| Connection GUC `pg_agent_policy.agent_id` | P1 | Implicit principal from session |
 | pgrx evaluator | P1 | Latency at MCP QPS |
 | Parallel-safe STABLE evaluate where possible | P1 | Use inside views carefully |
 

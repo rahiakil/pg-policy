@@ -1,9 +1,9 @@
 -- Example 03: guidance / soft steering
-CREATE EXTENSION IF NOT EXISTS pg_policy;
+CREATE EXTENSION IF NOT EXISTS pg_agent_policy;
 
-SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_policy.upsert_policy('prefer_explain', $apl$
+SELECT pg_agent_policy.upsert_policy('prefer_explain', $apl$
 guide
   principal agent "research_bot"
   action tool "execute_sql"
@@ -12,7 +12,7 @@ guide
   max_rows 500
 $apl$, 'Steer SQL agents toward EXPLAIN + row caps', 50);
 
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent', 'research_bot', 'tool', 'execute_sql',
   '*', '*', '{"statement_type":"SELECT"}'::jsonb
 );

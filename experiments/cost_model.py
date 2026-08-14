@@ -21,7 +21,7 @@ LLM_TOOL_LOOP_MS = 800.0  # one model step + tool
 RLS_INDEXED_OVERHEAD_PCT = 0.02  # ~2% p95 in published 1M-row microbench
 RLS_UNINDEXED_SLOWDOWN_X = 5.0  # 3–8× community reports
 
-# pg_policy v0.1: PL/pgSQL + JSONB. Conservative envelope until pgrx lands.
+# pg_agent_policy v0.1: PL/pgSQL + JSONB. Conservative envelope until pgrx lands.
 # Lower bound: python matcher + 0.3ms local function call.
 # Upper bound: cold plan + audit insert on a remote primary.
 PG_POLICY_LOCAL_MS = 0.4
@@ -54,8 +54,8 @@ def main() -> None:
         ("app_filter_only", 0.08, 0.05),  # 8% of agent SQL omits tenant predicate (industry folklore + MCP bypass class)
         ("mcp_regex_gateway", 0.02, 1.5),  # extra hop + still bypassable (COMMIT; DROP)
         ("opa_sidecar", 0.005, OPA_MS + CROSS_AZ_MS),
-        ("pg_policy_evaluate", 0.0005, PG_POLICY_SAME_CONN_MS),  # residual: superuser/BYPASSRLS misconfig
-        ("pg_policy_plus_rls", 0.0001, PG_POLICY_SAME_CONN_MS + 0.2),
+        ("pg_agent_policy_evaluate", 0.0005, PG_POLICY_SAME_CONN_MS),  # residual: superuser/BYPASSRLS misconfig
+        ("pg_agent_policy_plus_rls", 0.0001, PG_POLICY_SAME_CONN_MS + 0.2),
     ]
     for name, p_bypass, extra_ms in architectures:
         rows.append(
@@ -77,7 +77,7 @@ def main() -> None:
             "incidents_year": incidents_year,
             "loss_usd_per_realized_bypass": loss_cross_tenant,
             "llm_tool_loop_ms": LLM_TOOL_LOOP_MS,
-            "pg_policy_same_conn_ms": PG_POLICY_SAME_CONN_MS,
+            "pg_agent_policy_same_conn_ms": PG_POLICY_SAME_CONN_MS,
             "rls_indexed_overhead_pct": RLS_INDEXED_OVERHEAD_PCT,
             "rls_unindexed_slowdown_x": RLS_UNINDEXED_SLOWDOWN_X,
         },

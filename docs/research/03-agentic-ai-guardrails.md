@@ -46,7 +46,7 @@ Therefore agent governance needs **three outcome classes**:
 ### 2.3 Hybrid (recommended)
 
 ```text
-LLM  →  Planner  →  Tool Gateway (pg_policy.evaluate)
+LLM  →  Planner  →  Tool Gateway (pg_agent_policy.evaluate)
                          │
                          ├─ deny → return error + reason
                          ├─ guide → attach advice / rewrite suggestion
@@ -111,14 +111,14 @@ Guidance should be machine-readable obligations, e.g.:
 
 ## 4. Mapping concerns → extension features
 
-| Concern | `pg_policy` feature |
+| Concern | `pg_agent_policy` feature |
 | --- | --- |
 | Tool allow/deny | APL `permit` / `forbid` on `tool:*` |
 | Row isolation | Generate/attach RLS; document complement |
 | Session quotas | Event log + temporal predicates |
 | Soft steering | `guide` effect + obligations |
 | Rollout safety | `enforce` / `log_only` / `guide_only` modes |
-| Audit | `pg_policy.decision_log` |
+| Audit | `pg_agent_policy.decision_log` |
 | Interop | AuthZEN-shaped JSON API |
 
 ---

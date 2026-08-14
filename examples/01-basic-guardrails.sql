@@ -1,9 +1,9 @@
 -- Example 01: basic guardrails
-CREATE EXTENSION IF NOT EXISTS pg_policy;
+CREATE EXTENSION IF NOT EXISTS pg_agent_policy;
 
-SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_policy.upsert_policy('block_ddl', $apl$
+SELECT pg_agent_policy.upsert_policy('block_ddl', $apl$
 forbid
   principal agent "research_bot"
   action tool "execute_sql"
@@ -11,7 +11,7 @@ forbid
   reason "Research agents may not run DDL"
 $apl$, 'Block DDL for research agents', 10);
 
-SELECT pg_policy.upsert_policy('allow_select', $apl$
+SELECT pg_agent_policy.upsert_policy('allow_select', $apl$
 permit
   principal agent "research_bot"
   action tool "execute_sql"
@@ -20,13 +20,13 @@ permit
 $apl$, 'Allow SELECT', 20);
 
 -- Denied
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent', 'research_bot', 'tool', 'execute_sql',
   '*', '*', '{"statement_type":"DROP"}'::jsonb
 );
 
 -- Allowed
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent', 'research_bot', 'tool', 'execute_sql',
   '*', '*', '{"statement_type":"SELECT"}'::jsonb
 );

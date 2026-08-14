@@ -2,9 +2,9 @@
 -- PEP MUST send context.acting_for (human) and context.approved for money tools.
 -- Use "unset" / "false" as fail-closed sentinels from middleware.
 
-CREATE EXTENSION IF NOT EXISTS pg_policy;
+CREATE EXTENSION IF NOT EXISTS pg_agent_policy;
 
-SELECT pg_policy.upsert_policy('pack_fintech_need_actor', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_fintech_need_actor', $apl$
 forbid
   principal agent "*"
   action tool "execute_sql"
@@ -12,7 +12,7 @@ forbid
   reason "Fintech: acting_for (human user) required for attribution"
 $apl$, 'Fintech: require acting_for on SQL', 5);
 
-SELECT pg_policy.upsert_policy('pack_fintech_need_actor_transfer', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_fintech_need_actor_transfer', $apl$
 forbid
   principal agent "*"
   action tool "transfer_funds"
@@ -20,7 +20,7 @@ forbid
   reason "Fintech: transfers must be attributed to a human"
 $apl$, 'Fintech: require acting_for on transfer', 5);
 
-SELECT pg_policy.upsert_policy('pack_fintech_transfer_hitl', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_fintech_transfer_hitl', $apl$
 forbid
   principal agent "*"
   action tool "transfer_funds"
@@ -28,7 +28,7 @@ forbid
   reason "Fintech: transfer_funds requires human approval flag"
 $apl$, 'Fintech: dual control on transfers', 6);
 
-SELECT pg_policy.upsert_policy('pack_fintech_transfer_quota', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_fintech_transfer_quota', $apl$
 forbid
   principal agent "*"
   action tool "transfer_funds"
@@ -38,7 +38,7 @@ forbid
   reason "Fintech: at most one transfer per hour per session without a new approval cycle"
 $apl$, 'Fintech: transfer velocity', 7);
 
-SELECT pg_policy.upsert_policy('pack_fintech_read', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_fintech_read', $apl$
 permit
   principal agent "*"
   action tool "execute_sql"
@@ -46,7 +46,7 @@ permit
   reason "Fintech: investigative SELECT permitted"
 $apl$, 'Fintech: allow SELECT', 40);
 
-SELECT pg_policy.upsert_policy('pack_fintech_guide', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_fintech_guide', $apl$
 guide
   principal agent "*"
   action tool "execute_sql"

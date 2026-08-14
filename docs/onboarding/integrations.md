@@ -1,4 +1,4 @@
-# Adapters: make pg_policy work for every agent runtime
+# Adapters: make pg_agent_policy work for every agent runtime
 
 One SQL contract, many PEPs. The PEP is whatever actually invokes tools.
 
@@ -13,7 +13,7 @@ evaluate(principal_type, principal_id, action_type, action_id,
 ## 1. Raw SQL / any driver
 
 ```sql
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent',
   'langgraph:analytics',
   'tool',
@@ -59,7 +59,7 @@ Human-in-the-loop: map `interrupt()` to a `guide`/`forbid` that requires `contex
 
 ## 4. CrewAI / AutoGen / Letta
 
-Assign **one principal_id per role** (`crew:researcher`, `crew:writer`). Load `examples/packs/multi-agent.sql`. The crew process is not a security boundary; pg_policy is.
+Assign **one principal_id per role** (`crew:researcher`, `crew:writer`). Load `examples/packs/multi-agent.sql`. The crew process is not a security boundary; pg_agent_policy is.
 
 ---
 
@@ -74,7 +74,7 @@ Personal dev: `log_only` is acceptable; still load baseline so you see shadow_de
 
 Map:
 
-| AuthZEN | pg_policy |
+| AuthZEN | pg_agent_policy |
 | --- | --- |
 | subject.type/id | principal_* |
 | action.name | action_id (action_type=`tool`) |
@@ -90,7 +90,7 @@ Obligations travel in your PEP’s extra context until the HTTP sidecar exists (
 
 Until Neon/RDS allowlist you:
 
-- Run pg_policy on a **policy sidecar Postgres** (evaluate remotely), or
+- Run pg_agent_policy on a **policy sidecar Postgres** (evaluate remotely), or
 - Load the SQL as a plain schema in a self-hosted replica used as PDP, or
 - Use the same APL files in CI against a local PG.
 

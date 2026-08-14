@@ -1,5 +1,5 @@
--- Example 04: complement RLS (rows) with pg_policy (agent tools)
-CREATE EXTENSION IF NOT EXISTS pg_policy;
+-- Example 04: complement RLS (rows) with pg_agent_policy (agent tools)
+CREATE EXTENSION IF NOT EXISTS pg_agent_policy;
 
 -- Classic RLS for data plane
 CREATE TABLE IF NOT EXISTS demo_orders (
@@ -17,7 +17,7 @@ CREATE POLICY tenant_isolation ON demo_orders
   WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
 
 -- Agent control plane: even with RLS, block export tool without approval flag
-SELECT pg_policy.upsert_policy('export_needs_flag', $apl$
+SELECT pg_agent_policy.upsert_policy('export_needs_flag', $apl$
 forbid
   principal agent "support_bot"
   action tool "export_csv"
@@ -25,9 +25,9 @@ forbid
   reason "CSV export requires approval context.approved=true"
 $apl$, 'Export approval gate', 10);
 
-SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent', 'support_bot', 'tool', 'export_csv',
   'table', 'public.demo_orders',
   '{"approved":"false"}'::jsonb

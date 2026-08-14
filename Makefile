@@ -1,6 +1,6 @@
-EXTENSION = pg_policy
-DATA = sql/pg_policy--0.1.0.sql
-DOCS = doc/pg_policy.md
+EXTENSION = pg_agent_policy
+DATA = sql/pg_agent_policy--0.1.0.sql
+DOCS = doc/pg_agent_policy.md
 REGRESS = basic
 REGRESS_OPTS = --inputdir=test
 

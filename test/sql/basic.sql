@@ -1,9 +1,9 @@
--- basic regression input for pg_policy
-CREATE EXTENSION pg_policy;
+-- basic regression input for pg_agent_policy
+CREATE EXTENSION pg_agent_policy;
 
-SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_policy.upsert_policy('block_ddl', $apl$
+SELECT pg_agent_policy.upsert_policy('block_ddl', $apl$
 forbid
   principal agent "bot"
   action tool "execute_sql"
@@ -11,18 +11,18 @@ forbid
   reason "no ddl"
 $apl$);
 
-SELECT (pg_policy.evaluate(
+SELECT (pg_agent_policy.evaluate(
   'agent','bot','tool','execute_sql','*','*',
   '{"statement_type":"DROP"}'::jsonb
 )->>'decision') AS drop_decision;
 
 -- Default deny: SELECT matches no permit/forbid yet, so deny.
-SELECT (pg_policy.evaluate(
+SELECT (pg_agent_policy.evaluate(
   'agent','bot','tool','execute_sql','*','*',
   '{"statement_type":"SELECT"}'::jsonb
 )->>'decision') AS select_decision_before_permit;
 
-SELECT pg_policy.upsert_policy('guide_sql', $apl$
+SELECT pg_agent_policy.upsert_policy('guide_sql', $apl$
 guide
   principal agent "bot"
   action tool "execute_sql"
@@ -30,12 +30,12 @@ guide
   max_rows 100
 $apl$);
 
-SELECT (pg_policy.evaluate(
+SELECT (pg_agent_policy.evaluate(
   'agent','bot','tool','execute_sql','*','*',
   '{"statement_type":"SELECT"}'::jsonb
 )->>'decision') AS select_decision;
 
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent','bot','tool','execute_sql','*','*',
   '{"statement_type":"SELECT"}'::jsonb
 )->'obligations' AS obligations;

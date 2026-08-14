@@ -1,4 +1,4 @@
-# Installing pg_policy
+# Installing pg_agent_policy
 
 ## Prerequisites
 
@@ -17,14 +17,14 @@ make install
 Then in each database:
 
 ```sql
-CREATE EXTENSION pg_policy;
+CREATE EXTENSION pg_agent_policy;
 ```
 
 ## Verify
 
 ```sql
-SELECT extname, extversion FROM pg_extension WHERE extname = 'pg_policy';
-SELECT pg_policy.parse_apl($apl$
+SELECT extname, extversion FROM pg_extension WHERE extname = 'pg_agent_policy';
+SELECT pg_agent_policy.parse_apl($apl$
 permit
   principal agent "a"
   action tool "t"
@@ -34,7 +34,7 @@ $apl$);
 ## Uninstall
 
 ```sql
-DROP EXTENSION pg_policy CASCADE;
+DROP EXTENSION pg_agent_policy CASCADE;
 ```
 
 ## Packaged installs

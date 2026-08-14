@@ -1,9 +1,9 @@
 -- Pack: customer-support copilot
 -- Read tickets/orders; block PII export without approval; cap refunds.
 
-CREATE EXTENSION IF NOT EXISTS pg_policy;
+CREATE EXTENSION IF NOT EXISTS pg_agent_policy;
 
-SELECT pg_policy.upsert_policy('pack_support_pii_export', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_support_pii_export', $apl$
 forbid
   principal agent "*"
   action tool "export_csv"
@@ -11,7 +11,7 @@ forbid
   reason "Support: CSV export requires context.approved=true"
 $apl$, 'Support: export needs approval', 15);
 
-SELECT pg_policy.upsert_policy('pack_support_refund_quota', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_support_refund_quota', $apl$
 forbid
   principal agent "*"
   action tool "refund"
@@ -21,7 +21,7 @@ forbid
   reason "Support: refund quota exceeded (3/day/session)"
 $apl$, 'Support: refund rate limit', 16);
 
-SELECT pg_policy.upsert_policy('pack_support_refund_unapproved', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_support_refund_unapproved', $apl$
 forbid
   principal agent "*"
   action tool "refund"
@@ -29,7 +29,7 @@ forbid
   reason "Support: refunds require a human-approved context flag"
 $apl$, 'Support: refund HITL', 14);
 
-SELECT pg_policy.upsert_policy('pack_support_read_sql', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_support_read_sql', $apl$
 permit
   principal agent "*"
   action tool "execute_sql"
@@ -37,7 +37,7 @@ permit
   reason "Support: read SQL ok"
 $apl$, 'Support: allow SELECT', 40);
 
-SELECT pg_policy.upsert_policy('pack_support_steer', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_support_steer', $apl$
 guide
   principal agent "*"
   action tool "execute_sql"

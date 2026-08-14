@@ -1,13 +1,15 @@
-# pg_policy
+# pg_agent_policy
 
 **Agentic policy language for PostgreSQL** — guardrails, guidance, and session-aware controls beside your data.
 
-`pg_policy` is a PostgreSQL extension that lets you authorize and steer AI agents with a small, readable **Agent Policy Language (APL)**. It complements row-level security: RLS protects *rows*; `pg_policy` governs *agent tools, sessions, and soft guidance*.
+`pg_agent_policy` is a PostgreSQL extension that lets you authorize and steer AI agents with a small, readable **Agent Policy Language (APL)**. It complements row-level security: RLS protects *rows*; `pg_agent_policy` governs *agent tools, sessions, and soft guidance*.
+
+> **Naming:** This extension is **not** PostgreSQL's system catalog [`pg_catalog.pg_policy`](https://www.postgresql.org/docs/current/catalog-pg-policy.html), which stores RLS policies created by `CREATE POLICY`. We chose `pg_agent_policy` so agent/tool policy is not confused with that catalog.
 
 ```sql
-CREATE EXTENSION pg_policy;
+CREATE EXTENSION pg_agent_policy;
 
-SELECT pg_policy.upsert_policy('block_ddl', $apl$
+SELECT pg_agent_policy.upsert_policy('block_ddl', $apl$
 forbid
   principal agent "research_bot"
   action tool "execute_sql"
@@ -15,9 +17,9 @@ forbid
   reason "Research agents may not run DDL"
 $apl$);
 
-SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_policy.check(
+SELECT pg_agent_policy.check(
   'research_bot',
   'execute_sql',
   '{"statement_type":"DROP"}'::jsonb
@@ -34,7 +36,7 @@ AI agents increasingly hold database credentials and tool access. Classical priv
 - Has this **session** already exhausted an export budget?
 - Should we **steer** the agent toward a safer tool (guidance), not only deny?
 
-Industry systems (Cedar, OPA/Rego, OpenFGA, Dogwood) solve pieces of this outside the database. `pg_policy` brings an agent-native policy layer **into** PostgreSQL so policies, session events, decision logs, and data share one trust boundary.
+Industry systems (Cedar, OPA/Rego, OpenFGA, Dogwood) solve pieces of this outside the database. `pg_agent_policy` brings an agent-native policy layer **into** PostgreSQL so policies, session events, decision logs, and data share one trust boundary.
 
 **Start here for the argument:** [Why databases must govern agents](docs/research/07-value-thesis.md) · [Industry-track working paper](paper/db-policy-for-agents.md) · [Use cases](docs/usecases/README.md) · [Onboard in 30 minutes](docs/onboarding/README.md) · [Load a policy pack](doc/packs.md)
 
@@ -64,10 +66,10 @@ Thorough research lives in [`docs/research/`](docs/research/).
 ### From source
 
 ```bash
-git clone https://github.com/rahiakil/pg-policy.git
-cd pg-policy
+git clone https://github.com/rahiakil/pg-agent-policy.git
+cd pg-agent-policy
 make install
-psql -d mydb -c "CREATE EXTENSION pg_policy;"
+psql -d mydb -c "CREATE EXTENSION pg_agent_policy;"
 ```
 
 Requires PostgreSQL 14+ (tested target: 14–17) and a normal PGXS toolchain (`pg_config` on `PATH`).
@@ -84,9 +86,9 @@ psql -d mydb -f examples/01-basic-guardrails.sql
 
 ```sql
 -- Soft onboarding: observe only
-SELECT pg_policy.set_setting('enforcement_mode', 'log_only');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'log_only');
 
-SELECT pg_policy.upsert_policy('export_budget', $apl$
+SELECT pg_agent_policy.upsert_policy('export_budget', $apl$
 forbid
   principal agent "research_bot"
   action tool "export_csv"
@@ -96,9 +98,9 @@ forbid
   reason "Export budget exceeded"
 $apl$);
 
-SELECT pg_policy.open_session('sess-1', 'agent', 'research_bot');
+SELECT pg_agent_policy.open_session('sess-1', 'agent', 'research_bot');
 
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent', 'research_bot', 'tool', 'export_csv',
   '*', '*', '{}'::jsonb, 'sess-1'
 );
@@ -107,7 +109,7 @@ SELECT pg_policy.evaluate(
 Promote to enforce after a shadow period:
 
 ```sql
-SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 ```
 
 ---
@@ -118,7 +120,7 @@ SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
 Agent / MCP gateway
         │
         ▼
- pg_policy.evaluate(...)
+ pg_agent_policy.evaluate(...)
         │
         ├─ match APL policies (permit/forbid/guide)
         ├─ evaluate context + temporal session events
@@ -139,7 +141,7 @@ Design decisions: [`docs/design/`](docs/design/) · ADRs: [`docs/adr/`](docs/adr
 | Doc | Contents |
 | --- | --- |
 | [APL language](doc/language.md) | Syntax reference |
-| [Extension guide](doc/pg_policy.md) | Install & concepts |
+| [Extension guide](doc/pg_agent_policy.md) | Install & concepts |
 | [Policy landscape](docs/research/01-policy-language-landscape.md) | Cedar, Rego, CEL, Zanzibar, Dogwood, RLS, … |
 | [Extension feasibility](docs/research/02-postgres-extension-feasibility.md) | Hooks, PGXS, packaging |
 | [Agentic guardrails](docs/research/03-agentic-ai-guardrails.md) | Guardrail vs guidance |
@@ -185,10 +187,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). By participating you agree to the [Code 
 
 ## License
 
-[`pg_policy` is released under the PostgreSQL License](LICENSE) — the same style of license used across the PostgreSQL ecosystem.
+[`pg_agent_policy` is released under the PostgreSQL License](LICENSE) — the same style of license used across the PostgreSQL ecosystem.
 
 ## Links
 
-- Repository: https://github.com/rahiakil/pg-policy
-- Issues: https://github.com/rahiakil/pg-policy/issues
+- Repository: https://github.com/rahiakil/pg-agent-policy
+- Issues: https://github.com/rahiakil/pg-agent-policy/issues
 - PGXN: planned (see roadmap)

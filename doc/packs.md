@@ -1,6 +1,6 @@
 # Policy packs
 
-Packs are versioned SQL that call `pg_policy.upsert_policy`. They are the supported way to onboard a domain without inventing APL from scratch.
+Packs are versioned SQL that call `pg_agent_policy.upsert_policy`. They are the supported way to onboard a domain without inventing APL from scratch.
 
 ## Load
 

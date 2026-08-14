@@ -9,7 +9,7 @@ Users want “additional syntax for policy in Postgres.” Core Postgres does no
 
 ## Decision
 
-1. **Primary UX:** dollar-quoted APL passed to `pg_policy.upsert_policy`.
+1. **Primary UX:** dollar-quoted APL passed to `pg_agent_policy.upsert_policy`.
 2. **Secondary UX:** JSONB structured policy insert for generated clients.
 3. **Tertiary UX (roadmap):** hooks that enforce statement classes for agent roles.
 4. **Non-goal:** Postgres fork or patch to add `CREATE AGENT POLICY` tokens.

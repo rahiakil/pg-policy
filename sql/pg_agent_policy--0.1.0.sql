@@ -1,7 +1,7 @@
 -- complain if script is sourced in psql, rather than via CREATE EXTENSION
-\echo Use "CREATE EXTENSION pg_policy" to load this file. \quit
+\echo Use "CREATE EXTENSION pg_agent_policy" to load this file. \quit
 
-COMMENT ON SCHEMA pg_policy IS
+COMMENT ON SCHEMA pg_agent_policy IS
   'Agentic policy language: guardrails, guidance, and session-aware controls';
 
 --------------------------------------------------------------------------------
@@ -649,7 +649,7 @@ BEGIN
   END IF;
 
   IF p_raise_on_deny AND decision = 'deny' AND mode = 'enforce' THEN
-    RAISE EXCEPTION 'pg_policy deny: %', coalesce(array_to_string(reasons, '; '), 'forbidden')
+    RAISE EXCEPTION 'pg_agent_policy deny: %', coalesce(array_to_string(reasons, '; '), 'forbidden')
       USING ERRCODE = '42501';
   END IF;
 

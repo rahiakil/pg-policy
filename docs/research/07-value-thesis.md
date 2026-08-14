@@ -1,4 +1,4 @@
-# Why databases must govern agents (and how pg_policy does it)
+# Why databases must govern agents (and how pg_agent_policy does it)
 
 **Audience:** database engineers, platform teams, agent-framework authors, security/compliance  
 **Last updated:** 2026-08-10  
@@ -24,7 +24,7 @@ The industry already moved retrieval (RAG) behind metadata filters. **Tool-using
 
 Postgres is where those interactions become real. If policy does not live **beside the data**, every LangGraph graph, CrewAI crew, Cursor MCP, and homegrown SQL tool will reimplement a worse, drifting copy of the same rules.
 
-That is the value of `pg_policy`.
+That is the value of `pg_agent_policy`.
 
 ---
 
@@ -37,7 +37,7 @@ That is the value of `pg_policy`.
 │  (Bedrock Guardrails, NeMo, Llama Guard, …)                 │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│  Plane B — Agent / tool control   ← pg_policy lives here    │
+│  Plane B — Agent / tool control   ← pg_agent_policy lives here    │
 │  May this agent call this tool, with this context,          │
 │  given this session history? Hard deny + soft guidance.     │
 └─────────────────────────────────────────────────────────────┘
@@ -54,7 +54,7 @@ Most teams only build A (RLS) or only C (LLM firewalls). **B is the missing plan
 - An MCP server that regex-blocks `DROP` still loses to `COMMIT; DROP…` (the deprecated reference Postgres MCP taught this the hard way).
 - Multi-agent crews share one service account; nobody can answer “which agent did this?”
 
-`pg_policy` is plane B **inside PostgreSQL**, so A and B share transactions, catalogs, and audit.
+`pg_agent_policy` is plane B **inside PostgreSQL**, so A and B share transactions, catalogs, and audit.
 
 ---
 
@@ -82,13 +82,13 @@ LangGraph’s production pattern is `PostgresSaver` for graph checkpoints. CrewA
 
 ### 3.4 Regulation now expects an agent control plane
 
-EU AI Act Article 12 (high-risk logging; widely cited full-enforcement milestone August 2026), GDPR accountability, HIPAA unique-user identification, SOC 2 monitoring, ISO/IEC 42001: logs must be structured, attributed (human + agent), correlated by session, and not “the LLM’s service account did something.” `pg_policy.decision_log` + `sessions` + `events` are the database-shaped answer.
+EU AI Act Article 12 (high-risk logging; widely cited full-enforcement milestone August 2026), GDPR accountability, HIPAA unique-user identification, SOC 2 monitoring, ISO/IEC 42001: logs must be structured, attributed (human + agent), correlated by session, and not “the LLM’s service account did something.” `pg_agent_policy.decision_log` + `sessions` + `events` are the database-shaped answer.
 
 ---
 
 ## 4. Value, stated as jobs-to-be-done
 
-| Who | Job | How pg_policy helps |
+| Who | Job | How pg_agent_policy helps |
 | --- | --- | --- |
 | DBA / platform | Stop agents from DDL, COPY, superuser paths | `forbid` packs + least-privilege recipes |
 | App security | One policy for every MCP/gateway | `evaluate()` as PDP; AuthZEN-shaped JSON |
@@ -109,7 +109,7 @@ Not one mega-policy. A **universal kernel** plus **packs**:
 4. **Packs** — domain SQL you load in minutes (analytics, support, fintech, healthcare, devops, multi-agent)
 5. **Adapters** — 15-line middleware for MCP / LangGraph / any HTTP PEP
 
-If your agent can run SQL, it can call `pg_policy.evaluate`. That is the compatibility story: **SQL is the lingua franca**, not another SDK.
+If your agent can run SQL, it can call `pg_agent_policy.evaluate`. That is the compatibility story: **SQL is the lingua franca**, not another SDK.
 
 ---
 
@@ -129,6 +129,6 @@ Those limits are why we ship **shadow mode**, **packs**, and **RLS complements**
 
 Postgres already won vectors, JSON, RLS, and (increasingly) agent *state*. The next primitive is **agent policy**. If we do not define it in-tree-as-extension, it will be defined in fifty incompatible MCP servers and three cloud consoles.
 
-`pg_policy` is that primitive: readable policy, session memory, guidance, audit — next to the rows agents actually touch.
+`pg_agent_policy` is that primitive: readable policy, session memory, guidance, audit — next to the rows agents actually touch.
 
 **Read next:** [use cases](../usecases/README.md) · [onboarding](../onboarding/README.md) · [what to add next](08-capability-backlog.md) · [policy packs](../../doc/packs.md)

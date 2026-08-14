@@ -1,4 +1,4 @@
-"""Faithful v0.1 APL matcher (mirrors sql/pg_policy--0.1.0.sql semantics).
+"""Faithful v0.1 APL matcher (mirrors sql/pg_agent_policy--0.1.0.sql semantics).
 
 Used for microbenchmarks when a live PostgreSQL is unavailable, and as an
 oracle for expected decisions.

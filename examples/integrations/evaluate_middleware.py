@@ -1,4 +1,4 @@
-"""Minimal PEP middleware: call pg_policy.evaluate before any agent tool.
+"""Minimal PEP middleware: call pg_agent_policy.evaluate before any agent tool.
 
 Works with psycopg3. Copy into LangGraph ToolNode wrappers, MCP servers, or Flask/FastAPI gateways.
 
@@ -46,7 +46,7 @@ def evaluate(
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """
-            SELECT pg_policy.evaluate(
+            SELECT pg_agent_policy.evaluate(
               'agent', %s, 'tool', %s, %s, %s, %s::jsonb, %s, %s
             ) AS result
             """,
@@ -89,7 +89,7 @@ def open_session(
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT pg_policy.open_session(%s, 'agent', %s, %s::jsonb)",
+            "SELECT pg_agent_policy.open_session(%s, 'agent', %s, %s::jsonb)",
             (session_id, agent_id, Jsonb(dict(attributes or {}))),
         )
 

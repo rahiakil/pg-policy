@@ -8,7 +8,7 @@
 
 ## Executive snapshot (2026-08)
 
-| Trend | Evidence | Implication for pg_policy |
+| Trend | Evidence | Implication for pg_agent_policy |
 | --- | --- | --- |
 | Agents get production DB credentials | Supabase Agents positioning; Neon Data API + RLS; multiple “safe SQL agent” posts | RLS alone is necessary but insufficient |
 | Policy languages converge on Cedar-like readability | Cedar in AgentCore; Dogwood extends Cedar | APL should feel Cedar/Dogwood-familiar, SQL-native packaging |
@@ -29,22 +29,22 @@
 ### A. AI app platforms (Supabase, Neon, Firebase rivals)
 
 Need: multi-tenant RLS + agent roles + easy policy recipes.  
-pg_policy wedge: agent/tool policies + examples that compose with RLS.
+pg_agent_policy wedge: agent/tool policies + examples that compose with RLS.
 
 ### B. Enterprise agent platforms (Bedrock AgentCore, Azure AI, Vertex)
 
 Need: Cedar/Dogwood-compatible governance, audit, temporal.  
-pg_policy wedge: Postgres-resident evaluation for data tools; export/import Cedar subset (roadmap).
+pg_agent_policy wedge: Postgres-resident evaluation for data tools; export/import Cedar subset (roadmap).
 
 ### C. MCP / tool gateway vendors
 
 Need: per-tool authorize() with obligations.  
-pg_policy wedge: single `evaluate()` returning AuthZEN-like decisions.
+pg_agent_policy wedge: single `evaluate()` returning AuthZEN-like decisions.
 
 ### D. Regulated industries (fintech, health, public sector)
 
 Need: evidence of control, break-glass, retention.  
-pg_policy wedge: immutable-ish decision logs; log_only → enforce promotion.
+pg_agent_policy wedge: immutable-ish decision logs; log_only → enforce promotion.
 
 ---
 
@@ -63,7 +63,7 @@ pg_policy wedge: immutable-ish decision logs; log_only → enforce promotion.
 
 **Positioning statement**
 
-> pg_policy is the open-source PostgreSQL extension that adds an agentic policy language beside your data—guardrails, guidance, and session-aware limits—complementing RLS and publishing on PGXN for every Postgres.
+> pg_agent_policy is the open-source PostgreSQL extension that adds an agentic policy language beside your data—guardrails, guidance, and session-aware limits—complementing RLS and publishing on PGXN for every Postgres.
 
 ---
 
@@ -88,7 +88,7 @@ pg_policy wedge: immutable-ish decision logs; log_only → enforce promotion.
 - Pure SQL v0.1 install path.
 - Familiar permit/forbid/guide lexicon.
 - Benchmarks + IR caching roadmap.
-- Docs that teach “RLS for rows, pg_policy for agent actions.”
+- Docs that teach “RLS for rows, pg_agent_policy for agent actions.”
 
 ---
 
@@ -106,11 +106,11 @@ pg_policy wedge: immutable-ish decision logs; log_only → enforce promotion.
 
 Completed landscape of Cedar, Rego, CEL, Polar, Zanzibar/OpenFGA, Dogwood, RLS, pgauthz, pg_cel, pg_command_fw, PGXN packaging constraints, and agent DB access literature (Supabase, Neon, Datapace, datamcp).
 
-**Decision:** proceed with APL inside `pg_policy`, SQL-first MVP, Dogwood-inspired temporal + Sentinel-inspired graded modes (enforce/log/guide).
+**Decision:** proceed with APL inside `pg_agent_policy`, SQL-first MVP, Dogwood-inspired temporal + Sentinel-inspired graded modes (enforce/log/guide).
 
 ### 2026-08-10 — Managed provider distribution paths
 
-| Provider | Model | Path for pg_policy |
+| Provider | Model | Path for pg_agent_policy |
 | --- | --- | --- |
 | **Self-hosted / PGXN** | Install any extension | Primary day-1 channel |
 | **AWS RDS / Aurora** | Curated extension list + `rds.allowed_extensions` | Must be accepted by AWS into supported extensions; SQL-only helps review |
@@ -125,7 +125,7 @@ Completed landscape of Cedar, Rego, CEL, Polar, Zanzibar/OpenFGA, Dogwood, RLS, 
 
 OpenID **AuthZEN Authorization API 1.0** standardizes PEP↔PDP JSON:
 
-| AuthZEN | pg_policy.evaluate |
+| AuthZEN | pg_agent_policy.evaluate |
 | --- | --- |
 | `subject.type` / `subject.id` | `p_principal_type` / `p_principal_id` |
 | `action.name` (plus properties) | `p_action_type` + `p_action_id` (split for tool taxonomy) |
@@ -138,7 +138,7 @@ Roadmap: optional thin HTTP PDP that translates AuthZEN → SQL `evaluate()` so 
 
 ### 2026-08-10 — MCP Postgres tool ecosystem
 
-The MCP Postgres landscape validates `pg_policy`’s wedge:
+The MCP Postgres landscape validates `pg_agent_policy`’s wedge:
 
 | Observation | Evidence | Product implication |
 | --- | --- | --- |
@@ -149,7 +149,7 @@ The MCP Postgres landscape validates `pg_policy`’s wedge:
 | Audit of denials | pgguard records refusals | Aligns with `decision_log` |
 | RLS + SET ROLE / JWT claims | pgguard / Supabase patterns | Keep RLS complement docs central |
 
-**Wedge narrative for MCP authors:** stop hard-coding row caps and tool allowlists in every MCP server—call `pg_policy.evaluate` so policy lives next to RLS and survives gateway swaps.
+**Wedge narrative for MCP authors:** stop hard-coding row caps and tool allowlists in every MCP server—call `pg_agent_policy.evaluate` so policy lives next to RLS and survives gateway swaps.
 
 Suggested starter policy pack (roadmap example):
 
@@ -178,12 +178,12 @@ Drafted *Policy Beside the Data* (`paper/db-policy-for-agents.md` + ACM LaTeX) f
 
 - [x] Survey managed Postgres providers’ extension allowlist processes (initial pass: RDS, Neon, Supabase, Aiven/Crunchy, CNPG/OCI).
 - [ ] Benchmark CEL vs pure SQL IR for 10k evaluate/s.
-- [x] Map AuthZEN request fields to `pg_policy.evaluate` JSON (sketch).
+- [x] Map AuthZEN request fields to `pg_agent_policy.evaluate` JSON (sketch).
 - [x] Interview-style synthesis: MCP DB tool schemas (safe-postgres-mcp, pgguard, postgres-mcp, deprecated reference).
 - [ ] Track PGXN v2 trunk/OCI readiness for binary distribution.
 - [ ] Deep-dive `pg_tle` viability as alternate packaging for RDS-class hosts.
 - [ ] Competitive watch: Dogwood releases, AgentCore Policy features, pgauthz CEL roadmap.
-- [x] Draft reference MCP/Python middleware snippet calling `pg_policy`.
+- [x] Draft reference MCP/Python middleware snippet calling `pg_agent_policy`.
 
 ---
 

@@ -191,7 +191,7 @@ The OpenID AuthZEN effort standardizes authorization request/response shapes acr
 
 ## 9. Comparative decision matrix (agentic Postgres)
 
-| Requirement | RLS | Cedar | Rego | CEL | OpenFGA | Dogwood | **pg_policy (proposed)** |
+| Requirement | RLS | Cedar | Rego | CEL | OpenFGA | Dogwood | **pg_agent_policy (proposed)** |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Row isolation | ✓ | via app | via app | via app | via tuples | via app | ✓ complements RLS |
 | Tool allow/deny | ✗ | ✓ | ✓ | partial | partial | ✓ | ✓ |
@@ -217,7 +217,7 @@ The OpenID AuthZEN effort standardizes authorization request/response shapes acr
 
 ---
 
-## 11. Conclusion for `pg_policy`
+## 11. Conclusion for `pg_agent_policy`
 
 The greenfield opportunity is **not** “another Rego in Postgres.” It is:
 

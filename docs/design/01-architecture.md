@@ -10,7 +10,7 @@
 ┌──────────────────────────────────────────────────────────────────┐
 │ PostgreSQL                                                       │
 │                                                                  │
-│  ┌──────────────── pg_policy schema ─────────────────────────┐   │
+│  ┌──────────────── pg_agent_policy schema ─────────────────────────┐   │
 │  │ policies │ sessions │ events │ decision_log │ settings    │   │
 │  │                                                           │   │
 │  │ parse_apl → IR                                            │   │

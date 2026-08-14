@@ -21,7 +21,7 @@ Adjacent categories we borrow from:
 
 ## 2. Differentiation matrix
 
-| Capability | RLS | Dogwood/AgentCore | OPA | SpiceDB/OpenFGA | pg_policy |
+| Capability | RLS | Dogwood/AgentCore | OPA | SpiceDB/OpenFGA | pg_agent_policy |
 | --- | --- | --- | --- | --- | --- |
 | Install with `CREATE EXTENSION` | built-in | no | no | no | **yes** |
 | Tool-level permit/forbid | no | yes | yes | partial | **yes** |

@@ -1,6 +1,6 @@
 # Support
 
-- **Bugs & features:** https://github.com/rahiakil/pg-policy/issues
+- **Bugs & features:** https://github.com/rahiakil/pg-agent-policy/issues
 - **Security:** see [SECURITY.md](SECURITY.md)
 - **Docs:** [`README.md`](README.md), [`doc/`](doc/), [`docs/`](docs/)
 

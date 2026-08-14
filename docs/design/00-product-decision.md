@@ -1,4 +1,4 @@
-# Product Decision: pg_policy
+# Product Decision: pg_agent_policy
 
 **Date:** 2026-08-10  
 **Status:** Accepted
@@ -7,7 +7,7 @@
 
 ## Decision
 
-Build **`pg_policy`**, a PostgreSQL extension that provides an **Agent Policy Language (APL)** for:
+Build **`pg_agent_policy`**, a PostgreSQL extension that provides an **Agent Policy Language (APL)** for:
 
 1. **Guardrails** — hard allow/deny for agent/tool/data actions  
 2. **Guidance** — soft obligations and advice  
@@ -19,7 +19,7 @@ Build **`pg_policy`**, a PostgreSQL extension that provides an **Agent Policy La
 Cedar/Dogwood-inspired vocabulary (`permit`, `forbid`, `guide`, `when`, temporal windows) authored inside dollar-quoted documents and managed via SQL functions:
 
 ```sql
-SELECT pg_policy.upsert_policy('research_guard', $apl$
+SELECT pg_agent_policy.upsert_policy('research_guard', $apl$
 forbid
   principal agent "research_bot"
   action tool "execute_sql"
@@ -36,7 +36,7 @@ $apl$);
 | `log_only` | Always allow side; log would-deny |
 | `guide` | Never hard-deny; return obligations/advice |
 
-GUC: `pg_policy.enforcement_mode`
+GUC: `pg_agent_policy.enforcement_mode`
 
 ## Syntax strategy
 

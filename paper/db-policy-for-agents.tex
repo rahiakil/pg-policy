@@ -29,7 +29,7 @@
 \renewcommand{\shortauthors}{Paul}
 
 \begin{abstract}
-AI agents have become a new class of database client: they invent SQL at runtime, chain tools through MCP, and often share a service account. Classical privileges and row-level security (RLS) answer \emph{which rows}, not \emph{which tool, in which session, after which prior acts}. We survey equivalent mechanisms---Postgres/SQL Server RLS, Oracle VPD, Cedar, Dogwood, Rego, Polar, Zanzibar/OpenFGA, pgauthz, MCP regex firewalls---and find no agent-native policy language packaged as a PostgreSQL extension. We present \textbf{pg\_policy} and \textbf{APL}, a small total language evaluated inside PostgreSQL, with layered guardrails (GRANT $\rightarrow$ RLS $\rightarrow$ \texttt{evaluate()} $\rightarrow$ model filters). We disentangle two costs the ``it will slow queries'' objection conflates: per-row RLS on unindexed columns (3--8$\times$ in published pgbench; $\approx$2\% p95 once indexed) versus once-per-tool PDP evaluation (our APL matcher is 16--263\,\textmu s p50 for 3--200 policies; a conservative same-connection PL/pgSQL+audit envelope is 0.8--1.5\,ms, $<$0.2\% of a typical 800\,ms LLM tool loop). A sensitivity cost model shows expected breach loss dominating millisecond taxes. The prescription is architectural: index RLS for rows; evaluate APL for tools; never put tool policy on the hot row path.
+AI agents have become a new class of database client: they invent SQL at runtime, chain tools through MCP, and often share a service account. Classical privileges and row-level security (RLS) answer \emph{which rows}, not \emph{which tool, in which session, after which prior acts}. We survey equivalent mechanisms---Postgres/SQL Server RLS, Oracle VPD, Cedar, Dogwood, Rego, Polar, Zanzibar/OpenFGA, pgauthz, MCP regex firewalls---and find no agent-native policy language packaged as a PostgreSQL extension. We present \textbf{pg\_agent\_policy} and \textbf{APL}, a small total language evaluated inside PostgreSQL, with layered guardrails (GRANT $\rightarrow$ RLS $\rightarrow$ \texttt{evaluate()} $\rightarrow$ model filters). We disentangle two costs the ``it will slow queries'' objection conflates: per-row RLS on unindexed columns (3--8$\times$ in published pgbench; $\approx$2\% p95 once indexed) versus once-per-tool PDP evaluation (our APL matcher is 16--263\,\textmu s p50 for 3--200 policies; a conservative same-connection PL/pgSQL+audit envelope is 0.8--1.5\,ms, $<$0.2\% of a typical 800\,ms LLM tool loop). A sensitivity cost model shows expected breach loss dominating millisecond taxes. The prescription is architectural: index RLS for rows; evaluate APL for tools; never put tool policy on the hot row path.
 \end{abstract}
 
 \keywords{PostgreSQL, row-level security, agentic AI, authorization, policy languages, MCP}
@@ -45,13 +45,13 @@ Two camps argue past each other. One keeps policy in sidecars (OPA, Cedar) and M
 
 \begin{description}
 \item[A --- data isolation] Which rows exist? \texttt{GRANT} + RLS / VPD.
-\item[B --- agent/tool control] May this agent call this tool, given session history? APL / \texttt{pg\_policy.evaluate()}.
+\item[B --- agent/tool control] May this agent call this tool, given session history? APL / \texttt{pg\_agent\_policy.evaluate()}.
 \item[C --- model/content] Is the prompt/output allowed? External guardrails.
 \end{description}
 
 Plane~B is what production MCP Postgres servers reinvent in Node (read-only transactions, row caps, DDL regexes, denial logs)~\cite{safe-postgres-mcp,pgguard-mcp,postgres-mcp-pro}. Those are policies. They should be data next to RLS.
 
-\textbf{Contributions:} (1)~a survey of in-DB and adjacent policy systems against agentic requirements; (2)~APL and pg\_policy~\cite{pgpolicy} as an industrial artifact; (3)~latency and expected-loss analysis that separates RLS row-path cost from once-per-tool PDP cost; (4)~SQL examples and domain packs.
+\textbf{Contributions:} (1)~a survey of in-DB and adjacent policy systems against agentic requirements; (2)~APL and pg\_agent\_policy~\cite{pgagentpolicy} as an industrial artifact; (3)~latency and expected-loss analysis that separates RLS row-path cost from once-per-tool PDP cost; (4)~SQL examples and domain packs.
 
 This is a systems/industry paper: an open PGXS extension and v0.1 measurements, not a claim that APL replaces Cedar's SMT analyzer~\cite{cedar2024}.
 
@@ -94,7 +94,7 @@ OPA/Rego & sidecar & $\sim$ & $\sim$ & $\sim$ \\
 Zanzibar / OpenFGA & store & $\sim$ & & \\
 pgauthz & \cmark & & & \\
 MCP regex firewalls & process & \cmark & & $\sim$ \\
-\textbf{pg\_policy} & \cmark & \cmark & \cmark & \cmark \\
+\textbf{pg\_agent\_policy} & \cmark & \cmark & \cmark & \cmark \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -111,16 +111,16 @@ CREATE INDEX ON orders (tenant_id);
 \end{lstlisting}
 
 \begin{lstlisting}[language=SQL,caption={Plane B: once-per-tool APL (not a row qual).}]
-CREATE EXTENSION pg_policy;
-SELECT pg_policy.set_setting('enforcement_mode', 'log_only');
-SELECT pg_policy.upsert_policy('block_ddl', $apl$
+CREATE EXTENSION pg_agent_policy;
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'log_only');
+SELECT pg_agent_policy.upsert_policy('block_ddl', $apl$
 forbid
   principal agent "langgraph:analytics"
   action tool "execute_sql"
   when { context.statement_type in ["DROP","TRUNCATE","ALTER","CREATE"] }
   reason "No DDL"
 $apl$);
-SELECT pg_policy.evaluate(
+SELECT pg_agent_policy.evaluate(
   'agent','langgraph:analytics','tool','execute_sql',
   'table','public.orders',
   '{"statement_type":"DROP","acting_for":"user:42","tenant_id":"acme"}'::jsonb,
@@ -172,7 +172,7 @@ Sensitivity model (\textbf{not} actuarial): 10k tool calls/day, 4 attempted-inci
 
 \subsection{When in-DB policy does hurt}
 
-Unindexed RLS; many OR-combined permissive policies; non-\texttt{LEAKPROOF} functions blocking pushdown; calling \texttt{evaluate()} per row; synchronous HTTP from triggers. pg\_policy's API is a tool-level function, not a row trigger.
+Unindexed RLS; many OR-combined permissive policies; non-\texttt{LEAKPROOF} functions blocking pushdown; calling \texttt{evaluate()} per row; synchronous HTTP from triggers. pg\_agent\_policy's API is a tool-level function, not a row trigger.
 
 \section{Value that is not latency}
 
@@ -184,10 +184,10 @@ Oracle matcher $\neq$ PL/pgSQL wall time (hence the pessimistic envelope). P(byp
 
 \section{Conclusions}
 
-Agents make the database a tool. Index RLS for rows. Evaluate APL once per tool. Do not accept ``the database is too slow for policy'' without asking \emph{which plane}. Artifact: \url{https://github.com/rahiakil/pg-policy}.
+Agents make the database a tool. Index RLS for rows. Evaluate APL once per tool. Do not accept ``the database is too slow for policy'' without asking \emph{which plane}. Artifact: \url{https://github.com/rahiakil/pg-agent-policy}.
 
 \begin{acks}
-Working paper of the Agentic Memory Foundation. pg\_policy is open source under the PostgreSQL License.
+Working paper of the Agentic Memory Foundation. pg\_agent\_policy is open source under the PostgreSQL License.
 \end{acks}
 
 \bibliographystyle{ACM-Reference-Format}

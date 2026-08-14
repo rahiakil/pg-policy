@@ -87,7 +87,7 @@ Each use case lists **who**, **what the agent does**, **what RLS cannot do alone
 
 ## Mapping to planes
 
-| Use case | Plane A (RLS) | Plane B (pg_policy) | Plane C (model) |
+| Use case | Plane A (RLS) | Plane B (pg_agent_policy) | Plane C (model) |
 | --- | --- | --- | --- |
 | Analytics | tenant_id | DDL, row cap, export quota | hallucination SQL |
 | Support | customer scope | refund tool, PII export | tone / secrets in reply |

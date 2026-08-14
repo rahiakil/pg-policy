@@ -2,9 +2,9 @@
 -- Universal agent floor: no DDL/admin, steer SQL, cap bulk export.
 -- Does not change enforcement_mode (stay log_only until you promote).
 
-CREATE EXTENSION IF NOT EXISTS pg_policy;
+CREATE EXTENSION IF NOT EXISTS pg_agent_policy;
 
-SELECT pg_policy.upsert_policy('pack_baseline_ddl', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_baseline_ddl', $apl$
 forbid
   principal agent "*"
   action tool "execute_sql"
@@ -12,7 +12,7 @@ forbid
   reason "Baseline: agents may not run DDL or privilege SQL"
 $apl$, 'Baseline DDL/admin deny', 10);
 
-SELECT pg_policy.upsert_policy('pack_baseline_copy', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_baseline_copy', $apl$
 forbid
   principal agent "*"
   action tool "execute_sql"
@@ -20,7 +20,7 @@ forbid
   reason "Baseline: COPY is an exfil/load path; use export tools with quotas"
 $apl$, 'Baseline block COPY', 11);
 
-SELECT pg_policy.upsert_policy('pack_baseline_sql_guide', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_baseline_sql_guide', $apl$
 guide
   principal agent "*"
   action tool "execute_sql"
@@ -29,7 +29,7 @@ guide
   max_rows 500
 $apl$, 'Baseline SQL steering', 80);
 
-SELECT pg_policy.upsert_policy('pack_baseline_export_quota', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_baseline_export_quota', $apl$
 forbid
   principal agent "*"
   action tool "export_csv"

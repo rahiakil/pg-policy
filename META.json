@@ -1,25 +1,25 @@
 {
-  "name": "pg_policy",
+  "name": "pg_agent_policy",
   "abstract": "Agentic policy language for PostgreSQL — guardrails, guidance, and session-aware controls",
-  "description": "pg_policy adds an Agent Policy Language (APL) to PostgreSQL for AI-agent guardrails, soft guidance, and temporal session limits. It complements row-level security and is designed for tool gateways and MCP brokers that authorize agent actions beside your data.",
+  "description": "pg_agent_policy adds an Agent Policy Language (APL) to PostgreSQL for AI-agent guardrails, soft guidance, and temporal session limits. It complements row-level security and is designed for tool gateways and MCP brokers that authorize agent actions beside your data.",
   "version": "0.1.0",
-  "maintainer": ["pg_policy authors <security@example.com>"],
+  "maintainer": ["pg_agent_policy authors <security@example.com>"],
   "license": "postgresql",
   "provides": {
-    "pg_policy": {
+    "pg_agent_policy": {
       "abstract": "Agentic policy language for PostgreSQL",
-      "file": "sql/pg_policy--0.1.0.sql",
-      "docfile": "doc/pg_policy.md",
+      "file": "sql/pg_agent_policy--0.1.0.sql",
+      "docfile": "doc/pg_agent_policy.md",
       "version": "0.1.0"
     }
   },
   "resources": {
     "bugtracker": {
-      "web": "https://github.com/rahiakil/pg-policy/issues"
+      "web": "https://github.com/rahiakil/pg-agent-policy/issues"
     },
     "repository": {
-      "url": "git://github.com/rahiakil/pg-policy.git",
-      "web": "https://github.com/rahiakil/pg-policy",
+      "url": "git://github.com/rahiakil/pg-agent-policy.git",
+      "web": "https://github.com/rahiakil/pg-agent-policy",
       "type": "git"
     }
   },

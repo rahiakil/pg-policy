@@ -14,8 +14,8 @@ Install → Identity → Baseline pack → Shadow → Domain pack → Honor obli
 ## Day 0 — Install the kernel
 
 ```sql
-CREATE EXTENSION pg_policy;
-SELECT pg_policy.set_setting('enforcement_mode', 'log_only');  -- never start at enforce
+CREATE EXTENSION pg_agent_policy;
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'log_only');  -- never start at enforce
 ```
 
 From a checkout:
@@ -43,7 +43,7 @@ Pick **stable strings**. Changing them later orphans logs.
 Open a session when the agent run starts:
 
 ```sql
-SELECT pg_policy.open_session(
+SELECT pg_agent_policy.open_session(
   'thread-abc',
   'agent',
   'langgraph:analytics',
@@ -68,7 +68,7 @@ execute_tool()
 
 Copy-paste adapters: [`integrations.md`](integrations.md) and [`examples/integrations/`](../../examples/integrations/).
 
-If you cannot wrap tools yet, you are **not ready for enforce**. Stay in `log_only` and sample `pg_policy.decision_log`.
+If you cannot wrap tools yet, you are **not ready for enforce**. Stay in `log_only` and sample `pg_agent_policy.decision_log`.
 
 ---
 
@@ -76,7 +76,7 @@ If you cannot wrap tools yet, you are **not ready for enforce**. Stay in `log_on
 
 ```sql
 SELECT at, principal_id, action_id, decision, reasons, obligations
-FROM pg_policy.decision_log
+FROM pg_agent_policy.decision_log
 ORDER BY at DESC
 LIMIT 50;
 ```
@@ -127,13 +127,13 @@ Until `max_rows` is enforced in the MCP, the policy is theater.
 
 ```sql
 -- only after: no surprise shadow_denies you disagree with
-SELECT pg_policy.set_setting('enforcement_mode', 'enforce');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 ```
 
 Rollback is one row:
 
 ```sql
-SELECT pg_policy.set_setting('enforcement_mode', 'log_only');
+SELECT pg_agent_policy.set_setting('enforcement_mode', 'log_only');
 ```
 
 ---
@@ -146,9 +146,9 @@ Never connect the agent as table owner or superuser.
 CREATE ROLE agent_runtime NOINHERIT LOGIN PASSWORD '...';
 GRANT USAGE ON SCHEMA public TO agent_runtime;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO agent_runtime;  -- tighten per pack
-GRANT USAGE ON SCHEMA pg_policy TO agent_runtime;
-GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA pg_policy TO agent_runtime;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_policy TO agent_runtime;
+GRANT USAGE ON SCHEMA pg_agent_policy TO agent_runtime;
+GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA pg_agent_policy TO agent_runtime;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_agent_policy TO agent_runtime;
 -- Do NOT grant BYPASSRLS
 ALTER ROLE agent_runtime SET default_transaction_read_only = on;  -- analytics/support
 ```

@@ -1,7 +1,7 @@
 # Database Policy for Agents — industry-track working paper
 
 **Affiliation:** Agentic Memory Foundation  
-**Artifact:** [`pg_policy`](https://github.com/rahiakil/pg-policy) PostgreSQL extension  
+**Artifact:** [`pg_agent_policy`](https://github.com/rahiakil/pg-agent-policy) PostgreSQL extension  
 **Status:** working paper (not yet submitted)
 
 ## Venue plan

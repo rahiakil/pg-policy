@@ -37,5 +37,5 @@
 ## Phase 5 — Ecosystem
 
 - AuthZEN HTTP adapter (optional companion repo)
-- MCP reference middleware calling `pg_policy.evaluate`
+- MCP reference middleware calling `pg_agent_policy.evaluate`
 - Policy pack gallery (fintech, healthcare, support bots)

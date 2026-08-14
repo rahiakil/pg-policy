@@ -19,8 +19,8 @@ jobs:
           done
       - name: Check extension files
         run: |
-          test -f pg_policy.control
-          test -f sql/pg_policy--0.1.0.sql
+          test -f pg_agent_policy.control
+          test -f sql/pg_agent_policy--0.1.0.sql
           test -f Makefile
 
   # Full installcheck requires a Postgres service image with matching PGXS.

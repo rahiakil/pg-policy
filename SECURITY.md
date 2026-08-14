@@ -8,7 +8,7 @@
 
 ## Security model (read this)
 
-`pg_policy` helps authorize agent/tool actions and record decisions. It is **not** a substitute for:
+`pg_agent_policy` helps authorize agent/tool actions and record decisions. It is **not** a substitute for:
 
 - PostgreSQL roles and `GRANT` / `REVOKE`
 - Row Level Security for multi-tenant row isolation
@@ -24,9 +24,9 @@ Known limitations in v0.1:
 
 ## Reporting a vulnerability
 
-Please open a GitHub Security Advisory on https://github.com/rahiakil/pg-policy or email the maintainers privately. Include:
+Please open a GitHub Security Advisory on https://github.com/rahiakil/pg-agent-policy or email the maintainers privately. Include:
 
-1. PostgreSQL version and `pg_policy` version
+1. PostgreSQL version and `pg_agent_policy` version
 2. Minimal reproduction SQL
 3. Impact assessment (authz bypass, DoS, injection, etc.)
 

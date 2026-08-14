@@ -1,4 +1,4 @@
-Revision history for pg_policy
+Revision history for pg_agent_policy
 
 0.1.0  2026-08-10
        * Initial public MVP: APL parser, policy catalog, evaluate API

@@ -1,9 +1,9 @@
 -- Pack: analytics / text-to-SQL BI copilot
 -- Pair with RLS on tenant_id and a read-only agent_runtime role.
 
-CREATE EXTENSION IF NOT EXISTS pg_policy;
+CREATE EXTENSION IF NOT EXISTS pg_agent_policy;
 
-SELECT pg_policy.upsert_policy('pack_analytics_writes', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_analytics_writes', $apl$
 forbid
   principal agent "*"
   action tool "execute_sql"
@@ -11,7 +11,7 @@ forbid
   reason "Analytics agents are read-only"
 $apl$, 'Analytics: no DML', 15);
 
-SELECT pg_policy.upsert_policy('pack_analytics_need_tenant', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_analytics_need_tenant', $apl$
 forbid
   principal agent "*"
   action tool "execute_sql"
@@ -19,7 +19,7 @@ forbid
   reason "Analytics: tenant_id must be set in context (PEP fail-closed)"
 $apl$, 'Analytics: require tenant context', 12);
 
-SELECT pg_policy.upsert_policy('pack_analytics_select_ok', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_analytics_select_ok', $apl$
 permit
   principal agent "*"
   action tool "execute_sql"
@@ -27,21 +27,21 @@ permit
   reason "Analytics: SELECT permitted"
 $apl$, 'Analytics: allow SELECT', 40);
 
-SELECT pg_policy.upsert_policy('pack_analytics_explain_ok', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_analytics_explain_ok', $apl$
 permit
   principal agent "*"
   action tool "explain_query"
   reason "Analytics: EXPLAIN is encouraged"
 $apl$, 'Analytics: allow EXPLAIN', 40);
 
-SELECT pg_policy.upsert_policy('pack_analytics_list_ok', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_analytics_list_ok', $apl$
 permit
   principal agent "*"
   action tool "list_tables"
   reason "Analytics: schema discovery allowed"
 $apl$, 'Analytics: allow list_tables', 40);
 
-SELECT pg_policy.upsert_policy('pack_analytics_tight_rows', $apl$
+SELECT pg_agent_policy.upsert_policy('pack_analytics_tight_rows', $apl$
 guide
   principal agent "*"
   action tool "execute_sql"
