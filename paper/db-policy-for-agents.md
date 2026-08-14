@@ -1,7 +1,7 @@
 # Policy Beside the Data: An In-Database Control Plane for Agentic Workloads
 
 **Working paper — industry track (CIDR 2027 / VLDB–SIGMOD 2027)**  
-Agentic Memory Foundation · artifact: [`pg_agent_policy`](https://github.com/rahiakil/pg-agent-policy)  
+Agentic Memory Foundation · artifact: [`pg_agent_policy`](https://github.com/rahiakil/pg-policy)  
 August 2026
 
 ---
@@ -322,7 +322,7 @@ Agents make the database a tool, not just a store. Row security remains mandator
 
 ### Artifact
 
-https://github.com/rahiakil/pg-agent-policy — extension, packs, PEP middleware, experiments in `experiments/`.
+https://github.com/rahiakil/pg-policy — extension, packs, PEP middleware, experiments in `experiments/`.
 
 ---
 

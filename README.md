@@ -66,8 +66,8 @@ Thorough research lives in [`docs/research/`](docs/research/).
 ### From source
 
 ```bash
-git clone https://github.com/rahiakil/pg-agent-policy.git
-cd pg-agent-policy
+git clone https://github.com/rahiakil/pg-policy.git
+cd pg-policy
 make install
 psql -d mydb -c "CREATE EXTENSION pg_agent_policy;"
 ```
@@ -191,6 +191,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). By participating you agree to the [Code 
 
 ## Links
 
-- Repository: https://github.com/rahiakil/pg-agent-policy
-- Issues: https://github.com/rahiakil/pg-agent-policy/issues
+- Repository: https://github.com/rahiakil/pg-policy
+- Issues: https://github.com/rahiakil/pg-policy/issues
 - PGXN: planned (see roadmap)

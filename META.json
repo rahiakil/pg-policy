@@ -15,11 +15,11 @@
   },
   "resources": {
     "bugtracker": {
-      "web": "https://github.com/rahiakil/pg-agent-policy/issues"
+      "web": "https://github.com/rahiakil/pg-policy/issues"
     },
     "repository": {
-      "url": "git://github.com/rahiakil/pg-agent-policy.git",
-      "web": "https://github.com/rahiakil/pg-agent-policy",
+      "url": "git://github.com/rahiakil/pg-policy.git",
+      "web": "https://github.com/rahiakil/pg-policy",
       "type": "git"
     }
   },

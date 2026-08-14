@@ -13,8 +13,8 @@ Thank you for helping build a PostgreSQL-native policy layer for agentic AI.
 ## Development setup
 
 ```bash
-git clone https://github.com/rahiakil/pg-agent-policy.git
-cd pg-agent-policy
+git clone https://github.com/rahiakil/pg-policy.git
+cd pg-policy
 # Requires PostgreSQL development packages and pg_config
 make
 make install
