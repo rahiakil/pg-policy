@@ -1,10 +1,9 @@
 # Documentation index
 
-## Industry paper (CIDR / VLDB–SIGMOD)
+## Working paper
 
-- [Working paper (Markdown)](../paper/db-policy-for-agents.md)
-- [LaTeX (ACM sigconf)](../paper/db-policy-for-agents.tex)
-- [Venue plan](../paper/README.md)
+The industry-track paper lives in the sibling repo **[agentic-policy](https://github.com/Agentic-Memory-Foundation/agentic-policy)** (`../agentic-policy` locally): full LaTeX, PDF, experiments, and arXiv bundle. This repo ships the extension, tests, examples, and research notes.
+
 - [Experiments](../experiments/)
 
 ## User-facing

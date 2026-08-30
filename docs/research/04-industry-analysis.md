@@ -173,13 +173,13 @@ Pack count (baseline + 6 domains) meets the 90-day “≥ 5 domains” metric.
 
 ### 2026-08-11 — Industry-track working paper
 
-Drafted *Policy Beside the Data* (`paper/db-policy-for-agents.md` + ACM LaTeX) for **CIDR 2027** (6 pages, Jan 2027 Amsterdam) with VLDB/SIGMOD 2027 industrial as the 12-page follow-on. Core claim: the “DB policy is slow” objection conflates unindexed RLS (row path) with once-per-tool `evaluate()` (<0.2% of an LLM loop). Survey finds no equivalent agent-native PG extension (closest: pgauthz, Dogwood, MCP regex servers).
+Drafted *Policy Beside the Data* in **[agentic-policy](https://github.com/Agentic-Memory-Foundation/agentic-policy)** for **CIDR 2027** (6-page cut) with VLDB/SIGMOD 2027 industrial as the extended follow-on. Core claim: the “DB policy is slow” objection conflates unindexed RLS (row path) with once-per-tool `evaluate()` (<0.2% of an LLM loop). Survey finds no equivalent agent-native PG extension (closest: pgauthz, Dogwood, MCP regex servers).
 
 ### 2026-08-29 — Oracle Deep Data Security + paper refresh
 
 **Oracle Deep Data Security** (Oracle AI Database 26ai, March 2026) validates Plane A for agentic SQL: `CREATE DATA GRANT`, `ORA_END_USER_CONTEXT`, engine rewrite, identity propagation for Select AI/MCP. Gap vs pg_agent_policy: tool-level policy, temporal quotas, soft guidance, non-SQL MCP, open Postgres extension.
 
-Paper updated: abstract, intro, §3 survey, related work, threats, conclusions; added `bench_evaluate_pg.sh` for reproducible PL/pgSQL latency. Repositioned from “empty market cell” to “Plane B beside RLS; Oracle owns Plane A on 26ai.”
+Paper updated in **agentic-policy** (abstract, intro, survey, related work, threats, conclusions); added `bench_evaluate_pg.sh` for reproducible PL/pgSQL latency. Repositioned from “empty market cell” to “Plane B beside RLS; Oracle owns Plane A on 26ai.” Paper removed from this repo Aug 2026 — canonical source is agentic-policy only.
 
 ### Next analysis probes
 
