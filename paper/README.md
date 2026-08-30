@@ -40,7 +40,8 @@ Use `\documentclass[sigconf]{acmart}` (included). Switch `\cidrtrue` in the tex 
 
 ## Claims hygiene
 
-- Matcher latencies are a **Python oracle** of APL v0.1 semantics, not PostgreSQL `evaluate()` wall time.
-- PL/pgSQL + `decision_log` insert is modeled as **0.8–1.5 ms** on the same connection; pgrx is the path to Cedar-class µs.
+- Matcher latencies in §6.2 are a **Python oracle** of APL v0.1 semantics, not PostgreSQL `evaluate()` wall time.
+- **PL/pgSQL wall time:** run `experiments/bench_evaluate_pg.sh` → `results/evaluate_pg_microbench.json`. Until CI installcheck runs this, the paper quotes a **0.8–1.5 ms** conservative envelope on the same connection.
 - RLS slowdown numbers are from published community microbenchmarks (indexed ≈2% p95; unindexed 3–8×).
 - Breach probabilities in the cost model are **sensitivity assumptions**, not actuarial rates. The paper argues *ratios*, not a specific dollar ROI.
+- **Oracle Deep Data Security (26ai)** is surveyed as Plane A; pg_agent_policy targets Plane B on open Postgres.

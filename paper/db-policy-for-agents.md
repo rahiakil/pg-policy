@@ -8,9 +8,9 @@ August 2026
 
 ## Abstract
 
-AI agents have become a new class of database client: they invent SQL at runtime, chain tools through the Model Context Protocol (MCP), and often share a service account. Classical privileges and row-level security (RLS) answer *which rows*, but not *which tool, in which session, after which prior acts, with what soft guidance*. Industry has responded with sidecars (OPA/Cedar), relationship databases (Zanzibar/SpiceDB), and per-process MCP regex firewalls. We argue that for agent–data interaction the **database is the source of truth** and should host a complementary *tool/session* policy plane—not because every predicate belongs in a per-row `USING` clause, but because authorization that is not co-located with data *drifts*.
+AI agents have become a new class of database client: they invent SQL at runtime, chain tools through the Model Context Protocol (MCP), and often share a service account. Classical privileges and row-level security (RLS) answer *which rows*, but not *which tool, in which session, after which prior acts, with what soft guidance*. Industry has responded with sidecars (OPA/Cedar), relationship databases (Zanzibar/SpiceDB), per-process MCP regex firewalls, and—since March 2026—**Oracle Deep Data Security** in Oracle AI Database 26ai, which enforces identity-aware row/column grants at SQL rewrite time. We argue that for agent–data interaction the **database is the source of truth**, but that two planes must stay distinct: **Plane A** (which rows/columns) and **Plane B** (which tool, with what session history and obligations). Oracle’s new system validates Plane A for the Oracle SQL path; it does not address tool orchestration, temporal quotas, soft guidance, or non-SQL MCP tools.
 
-We survey equivalent mechanisms (Postgres/SQL Server RLS, Oracle VPD/RAS, IBM LBAC, Cedar, Dogwood, Rego, Polar, OpenFGA, pgauthz, statement firewalls) and show that **none** combine agent-native vocabulary, session-temporal constraints, soft guidance, and `CREATE EXTENSION` packaging. We present **pg_agent_policy** and **APL**, a small total language evaluated inside PostgreSQL, with layered guardrails (GRANT → RLS → `evaluate()` → model filters). We separate two costs that the “it will slow queries” objection conflates: (1) **per-row RLS** on unindexed columns (3–8× in published pgbench, ≈2% p95 once indexed) versus (2) **once-per-tool** PDP evaluation (our APL matcher is 16–263 µs p50 for 3–200 policies in-process; a conservative same-connection PL/pgSQL+audit envelope is 0.8–1.5 ms, **&lt;0.2% of a typical 800 ms LLM tool loop**). A sensitivity cost model shows expected-loss ratios that dominate millisecond taxes under any plausible cross-tenant incident cost. The industrial recommendation is architectural, not religious: **index RLS for rows; evaluate APL for tools; never put tool policy in the hot row path.**
+We survey equivalent mechanisms (Postgres/SQL Server RLS, Oracle VPD/RAS/Deep Data Security, IBM LBAC, Cedar, Dogwood, Rego, Polar, OpenFGA, pgauthz, statement firewalls) and show that **no open PostgreSQL extension** combines tool-native vocabulary, session-temporal constraints, soft guidance, and `CREATE EXTENSION` packaging. We present **pg_agent_policy** and **APL**, a small total language evaluated inside PostgreSQL for Plane B, with layered guardrails (GRANT → RLS → `evaluate()` → model filters). We separate two costs that the “it will slow queries” objection conflates: (1) **per-row RLS** on unindexed columns (3–8× in published pgbench, ≈2% p95 once indexed) versus (2) **once-per-tool** PDP evaluation (APL matcher 16–263 µs p50 for 3–200 policies in a Python oracle; reproducible PL/pgSQL wall-time via `experiments/bench_evaluate_pg.sh`, conservative envelope 0.8–1.5 ms, **&lt;0.2% of a typical 800 ms LLM tool loop**). A sensitivity cost model shows expected-loss ratios that dominate millisecond taxes under any plausible cross-tenant incident cost. The industrial recommendation is architectural: **index RLS (or Oracle DATA GRANT) for rows; evaluate APL for tools; never put tool policy in the hot row path.**
 
 ---
 
@@ -23,7 +23,9 @@ Two camps now argue past each other:
 1. **Keep policy out of the database.** Authorization is an application concern; in-DB predicates (especially RLS) surprise the planner and “slow everything down.” Sidecars (OPA), Cedar services, and MCP process filters are the right PEP.
 2. **The database is the last referee.** If the agent holds a connection string, any check that is not in the server can be walked around—exactly as forgotten `WHERE tenant_id = …` clauses have walked around application filters for twenty years.
 
-Both are half right. The first camp is correct that **per-row policy on unindexed columns is expensive**. The second is correct that **agents will talk to the database**. The mistake is treating “policy in the database” as a single mechanism. We split the control plane:
+Oracle’s March 2026 launch of **Deep Data Security** in Oracle AI Database 26ai lands firmly in camp (2) for the SQL path: `CREATE DATA GRANT` policies rewrite queries so agents cannot omit end-user predicates, with identity propagated via `ORA_END_USER_CONTEXT` [oracle-dds-blog, oracle-dds-docs]. That validates the thesis that agentic workloads need database-resident authorization—but Oracle’s design is **Plane A** (row/column/cell isolation), not tool/session orchestration across MCP.
+
+Both camps are half right. The first is correct that **per-row policy on unindexed columns is expensive**. The second is correct that **agents will talk to the database**. The mistake is treating “policy in the database” as a single mechanism. We split the control plane:
 
 | Plane | Question | Mechanism |
 | --- | --- | --- |
@@ -33,7 +35,7 @@ Both are half right. The first camp is correct that **per-row policy on unindexe
 
 Plane B is what production MCP Postgres servers are reinventing in Node (read-only transactions, row caps, DDL regexes, denial logs) [safe-postgres-mcp, pgguard-mcp, postgres-mcp-pro]. Those are *policies*. They should be data, versioned next to RLS, evaluated in SQL, not unique snowflakes per gateway binary.
 
-**Contributions.** (1) A survey of in-DB and adjacent policy technologies against agentic requirements. (2) APL and pg_agent_policy as an industrial artifact: language, SQL API, packs, layered guardrails. (3) A cost/latency analysis that *disentangles* RLS row-path overhead from once-per-tool PDP cost, with a runnable matcher microbench and an expected-loss model. (4) An onboarding contract that works for MCP, LangGraph, CrewAI, and IDE agents.
+**Contributions.** (1) An updated survey—including Oracle Deep Data Security (26ai)—that maps vendor and open-source systems to Planes A/B/C. (2) APL and pg_agent_policy as an open PostgreSQL artifact for **Plane B**: language, SQL API, packs, layered guardrails. (3) A cost/latency analysis that *disentangles* RLS row-path overhead from once-per-tool PDP cost, with Python-oracle and PL/pgSQL microbench scripts plus an expected-loss model. (4) An onboarding contract that works for MCP, LangGraph, CrewAI, and IDE agents.
 
 This is an **industry-track / CIDR-style systems paper**: an open extension, experience-shaped architecture, and measurements of a v0.1 SQL engine—not a claim that APL replaces Cedar’s SMT analyzer.
 
@@ -58,7 +60,7 @@ RLS is necessary and insufficient. It cannot express “this MCP tool may not ru
 
 ## 3. Survey: equivalent and adjacent technologies
 
-We asked: *is there already an in-database agent policy language?* Short answer: **no complete equivalent**. Long answer: rich partials.
+We asked: *is there already an in-database agent policy language?* Short answer: **Oracle now covers Plane A for agentic SQL on 26ai; no open Postgres extension covers Plane B.** Long answer: rich partials.
 
 ### 3.1 In-database row/column security (Plane A)
 
@@ -67,10 +69,13 @@ We asked: *is there already an in-database agent policy language?* Short answer:
 | PostgreSQL RLS | SQL boolean `USING` / `WITH CHECK` | No | No |
 | Oracle VPD (`DBMS_RLS`) | Dynamic `WHERE`; column-relevant policies | No | No |
 | Oracle RAS | Intended VPD successor | No | No |
+| **Oracle Deep Data Security (26ai)** | `CREATE DATA GRANT` + `ORA_END_USER_CONTEXT`; engine rewrite | **Yes** (identity-aware agent workloads) | No |
 | SQL Server RLS | Predicate functions | No | No |
 | IBM DB2 LBAC | Labels on rows/columns | No | No |
 
-These are the correct *row* plane. Oracle VPD’s lesson for agents is architectural: the engine rewrites statements so the client cannot forget the predicate [oracle-vpd]. Postgres RLS is the same idea with SQL-native policy objects [pg-rls]. None speak *tools* or *sessions*.
+These are the correct *row* plane. Oracle VPD’s lesson for agents is architectural: the engine rewrites statements so the client cannot forget the predicate [oracle-vpd]. **Oracle Deep Data Security** modernizes that pattern for agentic AI: end users (`CREATE END USER`), data roles, and declarative `CREATE DATA GRANT … AS SELECT (cols) ON view WHERE predicate` policies evaluated before results return [oracle-dds-docs, oracle-data-grant]. Workload-specific rules let agents and legacy apps share a schema with different grants. Controlled privilege elevation limits shared high-privilege service accounts. Select AI + MCP case studies show agents generating SQL while the database filters by authenticated end-user identity—solving the “shared DB account” problem for **SQL results**, not for **tool choice**.
+
+Postgres RLS is the same rewrite idea with SQL-native policy objects [pg-rls]. None of these Plane A systems speak *tools* (`execute_sql` vs `export_csv`), *session temporal quotas*, or *soft guidance obligations*.
 
 ### 3.2 Policy-as-code engines (usually sidecars)
 
@@ -102,7 +107,7 @@ pgauthz is the strongest prior *in-PG authorization framework*. pg_agent_policy 
 
 After the deprecated `@modelcontextprotocol/server-postgres` `COMMIT; DROP` class of bypasses, serious servers independently implemented: `BEGIN READ ONLY`, `statement_timeout`, row caps, AST/single-statement checks, audit of denials. That duplication is the industrial smell that a database-resident PDP should exist.
 
-**Finding.** There is a crowded Plane A and a crowded sidecar Plane B. The empty cell is: **agent-native policy as a PostgreSQL extension**, with guidance and temporal session constraints, distributed like `pgvector`.
+**Finding.** Plane A is now crowded—including Oracle’s agent-marketed Deep Data Security—and sidecar Plane B is crowded (Cedar, Dogwood, MCP regex). The remaining gap for the **Postgres open ecosystem** is: **tool/session policy as a PostgreSQL extension**, with guidance and temporal constraints, complementing RLS the way Oracle DATA GRANT complements VPD on 26ai.
 
 ---
 
@@ -223,7 +228,7 @@ Load baseline, then one domain (`examples/packs/`): analytics, support, fintech,
 
 The slogan “policy in the database slows queries” almost always refers to **the first two rows**, not the third.
 
-### 6.2 Experiment A — APL matcher microbench
+### 6.2 Experiment A — APL matcher microbench (Python oracle)
 
 We implemented a Python oracle of pg_agent_policy v0.1 matching (`experiments/policy_engine.py`, `bench_evaluate.py`): glob on principal/action/resource, JSON condition `eq`/`in`, temporal count, deny-overrides. Workload: baseline pack (DDL forbid matches `statement_type=DROP`) padded with non-matching policies.
 
@@ -240,7 +245,11 @@ We implemented a Python oracle of pg_agent_policy v0.1 matching (`experiments/po
 
 Linear in the number of policies, as expected for v0.1 full scans. Production packs are tens of policies, not thousands. **Even 200 policies stay sub-millisecond in-process.**
 
-**What this is not.** It is not `SPI` / PL/pgSQL / WAL of `decision_log`. We therefore quote a **conservative envelope** for v0.1 in PostgreSQL on the *same connection* as the upcoming SQL: **0.8 ms** evaluate+log, **1.5 ms** with extra audit chatter. A pgrx/Cedar backend (roadmap) targets Cedar’s µs class [cedar2024]. Zanzibar’s published p95 &lt; 10 ms includes a global distributed graph [zanzibar2019]—a different problem.
+**What this is not.** It is not `SPI` / PL/pgSQL / WAL of `decision_log`. We therefore quote a **conservative envelope** for v0.1 in PostgreSQL on the *same connection* as the upcoming SQL: **0.8 ms** evaluate+log, **1.5 ms** with extra audit chatter.
+
+### 6.2b Experiment A′ — PL/pgSQL wall time (reproducible)
+
+`experiments/bench_evaluate_pg.sh` loads the extension DDL into PostgreSQL 14–17 (Docker or local), pads policies, and measures `clock_timestamp()` around `evaluate()` including `decision_log` insert. Results are written to `experiments/results/evaluate_pg_microbench.json`. CI should run this script when a Postgres service is available; until then we report the **envelope above**, not Python-oracle µs as PostgreSQL latency. A pgrx/Cedar backend (roadmap) targets Cedar’s µs class [cedar2024]. Zanzibar’s published p95 &lt; 10 ms includes a global distributed graph [zanzibar2019]—a different problem.
 
 ### 6.3 Experiment B — latency vs the agent loop
 
@@ -300,25 +309,34 @@ These are why we call the database the source of truth: not because it must eval
 
 ## 8. Threats to validity
 
-- Matcher bench is CPython, not PL/pgSQL; we therefore use a pessimistic PG envelope.
-- P(bypass) is assumed; a red-team study of MCP bypass rates would strengthen the industrial claim.
+- Python oracle matcher ≠ PL/pgSQL wall time; use `bench_evaluate_pg.sh` for reproducible PG numbers and the 0.8–1.5 ms envelope until CI installcheck is wired.
+- **Oracle Deep Data Security** enforces Plane A at SQL rewrite time without a PEP call; pg_agent_policy v0.1 requires the PEP to invoke `evaluate()`—defense-in-depth (`ProcessUtility_hook`, read-only roles) is roadmap, not shipped.
+- P(bypass) in the cost model is assumed ordinal sensitivity, not red-team measurement.
 - v0.1 APL is a small total language (no `formerly`/`since`, no SMT). Cedar/Dogwood remain stronger analyzers.
 - Superusers still bypass RLS; we document this rather than pretend otherwise.
-- Managed Postgres allowlists (Neon, RDS) currently block arbitrary extensions; PGXN is the open path, vendor programs are political.
+- Managed Postgres allowlists (Neon, RDS) currently block arbitrary extensions; PGXN is the open path, vendor programs are political. Oracle DDS is 26ai-only and proprietary.
 
 ---
 
 ## 9. Related work (short)
 
-Authorization systems [zanzibar2019, cedar2024, opa, openfga, oso-polar]; DBMS security (RLS, VPD, LBAC); agent guardrail runtimes [dogwood2026]; MCP DB tools [safe-postgres-mcp, pgguard-mcp]; multi-tenant agent isolation [securing-the-agent-2026, supabase-agents, neon-rls]; AuthZEN PEP/PDP API [authzen]. We differ by **packaging Plane B as a PGXS extension with an agent-native dialect and packs**.
+**Database row/column security:** PostgreSQL RLS [pg-rls]; Oracle VPD/RAS and **Deep Data Security** (26ai DATA GRANT, identity-aware agent workloads) [oracle-vpd, oracle-dds-blog, oracle-dds-docs]; SQL Server RLS; IBM LBAC.
+
+**Policy-as-code and agents:** Cedar [cedar2024]; Dogwood temporal agent guardrails [dogwood2026]; OPA/Rego [opa]; Oso Polar [oso-polar]; Zanzibar/SpiceDB/OpenFGA [zanzibar2019, spicedb, openfga].
+
+**Postgres-adjacent:** pgauthz/pg_cel [pgauthz, pg-cel]; pg_command_fw [pg-command-fw]; MCP DB tools [safe-postgres-mcp, pgguard-mcp, postgres-mcp-pro]; multi-tenant agent isolation [securing-the-agent-2026, supabase-agents, neon-rls]; AuthZEN PEP/PDP API [authzen].
+
+We differ from Oracle Deep Data Security by targeting **Plane B on open Postgres** (tools, temporal, guidance, packs). We differ from Cedar/Dogwood by **co-location with RLS** and `CREATE EXTENSION` packaging—not by claiming faster row rewrites than a commercial engine.
 
 ---
 
 ## 10. Conclusions
 
-Agents make the database a tool, not just a store. Row security remains mandatory and must be indexed. Tool/session policy does **not** belong in those row quals; it belongs in a **once-per-tool** evaluator beside the data. pg_agent_policy is an existence proof: a Cedar/Dogwood-inspired dialect, SQL API, layered guardrails, and domain packs, with matcher costs negligible next to LLM loops and with expected-loss math that favors a last referee in PostgreSQL.
+Agents make the database a tool, not just a store. **Oracle Deep Data Security confirms** that vendors agree: identity-aware authorization must live in the database for agentic SQL. That is Plane A. Row security (Postgres RLS, Oracle DATA GRANT) remains mandatory and must be indexed. Tool/session policy does **not** belong in those row quals; it belongs in a **once-per-tool** evaluator beside the data—Plane B, where MCP gateways, export budgets, and guidance still lack a Postgres-native home.
 
-**Industrial prescription:** GRANT + indexed RLS for rows; APL `evaluate()` for tools; model filters for text; shadow-mode for a week; then enforce. Do not accept “the database is too slow for policy” without asking *which plane* and *whether you indexed it*.
+pg_agent_policy is an existence proof for the open ecosystem: a Cedar/Dogwood-inspired dialect, SQL API, layered guardrails, and domain packs, with matcher costs negligible next to LLM loops and with expected-loss math that favors a last referee in PostgreSQL—provided the PEP calls `evaluate()` and RLS backs the row path.
+
+**Industrial prescription:** GRANT + indexed RLS (or Oracle DATA GRANT on 26ai) for rows; APL `evaluate()` for tools and non-SQL MCP actions; model filters for text; shadow-mode for a week; then enforce. Do not accept “the database is too slow for policy” without asking *which plane* and *whether you indexed it*. On Oracle, adopt Deep Data Security for SQL identity; on Postgres, pair RLS with APL for the tool plane Oracle does not ship.
 
 ### Artifact
 
@@ -340,6 +358,7 @@ sql = apply_sql_obligations(sql, decision)  # honor max_rows
 
 ```bash
 cd experiments
-python3 bench_evaluate.py   # writes results/evaluate_microbench.json
-python3 cost_model.py       # writes results/cost_model.json
+python3 bench_evaluate.py      # Python oracle → results/evaluate_microbench.json
+./bench_evaluate_pg.sh 16      # PL/pgSQL wall time → results/evaluate_pg_microbench.json
+python3 cost_model.py          # → results/cost_model.json
 ```

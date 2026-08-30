@@ -53,6 +53,7 @@ pg_agent_policy wedge: immutable-ish decision logs; log_only → enforce promoti
 | Player | Layer | Overlap | Gap we fill |
 | --- | --- | --- | --- |
 | Postgres RLS | DB | Row authz | No tools/temporal/guidance |
+| **Oracle Deep Data Security (26ai)** | DB | Identity-aware row/column for agentic SQL | No tools/temporal/guidance; 26ai lock-in |
 | OPA/Rego | Sidecar | General policy | Not PG-native DX |
 | Cedar + Dogwood | Agent runtime | Agent temporal | Not co-located with SQL/RLS |
 | OpenFGA/SpiceDB | Authz service | Relationships | Separate system to operate |
@@ -174,6 +175,12 @@ Pack count (baseline + 6 domains) meets the 90-day “≥ 5 domains” metric.
 
 Drafted *Policy Beside the Data* (`paper/db-policy-for-agents.md` + ACM LaTeX) for **CIDR 2027** (6 pages, Jan 2027 Amsterdam) with VLDB/SIGMOD 2027 industrial as the 12-page follow-on. Core claim: the “DB policy is slow” objection conflates unindexed RLS (row path) with once-per-tool `evaluate()` (<0.2% of an LLM loop). Survey finds no equivalent agent-native PG extension (closest: pgauthz, Dogwood, MCP regex servers).
 
+### 2026-08-29 — Oracle Deep Data Security + paper refresh
+
+**Oracle Deep Data Security** (Oracle AI Database 26ai, March 2026) validates Plane A for agentic SQL: `CREATE DATA GRANT`, `ORA_END_USER_CONTEXT`, engine rewrite, identity propagation for Select AI/MCP. Gap vs pg_agent_policy: tool-level policy, temporal quotas, soft guidance, non-SQL MCP, open Postgres extension.
+
+Paper updated: abstract, intro, §3 survey, related work, threats, conclusions; added `bench_evaluate_pg.sh` for reproducible PL/pgSQL latency. Repositioned from “empty market cell” to “Plane B beside RLS; Oracle owns Plane A on 26ai.”
+
 ### Next analysis probes
 
 - [x] Survey managed Postgres providers’ extension allowlist processes (initial pass: RDS, Neon, Supabase, Aiven/Crunchy, CNPG/OCI).
@@ -182,7 +189,8 @@ Drafted *Policy Beside the Data* (`paper/db-policy-for-agents.md` + ACM LaTeX) f
 - [x] Interview-style synthesis: MCP DB tool schemas (safe-postgres-mcp, pgguard, postgres-mcp, deprecated reference).
 - [ ] Track PGXN v2 trunk/OCI readiness for binary distribution.
 - [ ] Deep-dive `pg_tle` viability as alternate packaging for RDS-class hosts.
-- [ ] Competitive watch: Dogwood releases, AgentCore Policy features, pgauthz CEL roadmap.
+- [ ] Competitive watch: Dogwood releases, AgentCore Policy features, pgauthz CEL roadmap, **Oracle Deep Data Security GA**.
+- [ ] Run `bench_evaluate_pg.sh` in CI with Postgres service image.
 - [x] Draft reference MCP/Python middleware snippet calling `pg_agent_policy`.
 
 ---
