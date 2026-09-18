@@ -27,6 +27,7 @@ CREATE TABLE policies (
     reason          text,
     source_apl      text,
     mode_override   text        CHECK (mode_override IS NULL OR mode_override IN ('enforce', 'log_only', 'guide')),
+    version         text        DEFAULT '0.2.0',
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
@@ -75,7 +76,10 @@ CREATE TABLE decision_log (
     matched_policies text[],
     obligations     jsonb       NOT NULL DEFAULT '[]'::jsonb,
     reasons         text[],
-    mode            text        NOT NULL
+    mode            text        NOT NULL,
+    policy_version  text,
+    prev_hash       text,
+    row_hash        text
 );
 
 CREATE INDEX decision_log_at_idx ON decision_log (at DESC);
@@ -676,7 +680,9 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION evaluate IS
+COMMENT ON FUNCTION evaluate(
+  text, text, text, text, text, text, jsonb, text, boolean
+) IS
   'Evaluate agent policy. Returns decision, obligations, reasons, and matched policy names.';
 
 --------------------------------------------------------------------------------
@@ -712,3 +718,190 @@ AS $$
     'agent', p_agent, 'tool', p_tool, '*', '*', p_context, p_session_id, true
   );
 $$;
+
+--------------------------------------------------------------------------------
+-- v0.2 security hardening
+-- These functions address the gaps identified by adversarial
+-- experiments in the companion paper. The C-level hooks
+-- (src/agent_policy.c) provide non-bypassable enforcement;
+-- these SQL functions provide the catalog and identity binding.
+--------------------------------------------------------------------------------
+
+-- Append-only audit: agent roles can INSERT into decision_log
+-- and events but cannot UPDATE, DELETE, or TRUNCATE.
+REVOKE UPDATE, DELETE, TRUNCATE ON decision_log FROM PUBLIC;
+REVOKE UPDATE, DELETE, TRUNCATE ON events FROM PUBLIC;
+GRANT INSERT ON decision_log TO PUBLIC;
+GRANT INSERT ON events TO PUBLIC;
+
+-- Hash chain for tamper detection (makes silent edits detectable).
+CREATE OR REPLACE FUNCTION _decision_log_hash(
+  p_at timestamptz,
+  p_session_id text,
+  p_principal_id text,
+  p_action_id text,
+  p_decision text,
+  p_prev_hash text
+) RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SET search_path = agent_policy
+AS $$
+  SELECT md5(
+      coalesce(p_prev_hash, '') || '|' ||
+      to_char(p_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z') || '|' ||
+      coalesce(p_session_id, '') || '|' ||
+      coalesce(p_principal_id, '') || '|' ||
+      coalesce(p_action_id, '') || '|' ||
+      coalesce(p_decision, '')
+  )
+$$;
+
+-- Trigger to pin policy_version and extend the hash chain on each insert.
+CREATE OR REPLACE FUNCTION _decision_log_chain_trigger()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = agent_policy
+AS $$
+DECLARE
+  v_prev_hash text;
+  v_policy_version text;
+BEGIN
+  SELECT string_agg(DISTINCT p.version, ', ' ORDER BY p.version)
+    INTO v_policy_version
+  FROM policies p
+  WHERE p.name = ANY(NEW.matched_policies);
+  NEW.policy_version := coalesce(v_policy_version, 'unknown');
+
+  SELECT row_hash INTO v_prev_hash
+  FROM decision_log
+  WHERE log_id < NEW.log_id
+  ORDER BY log_id DESC
+  LIMIT 1;
+  NEW.prev_hash := v_prev_hash;
+  NEW.row_hash := _decision_log_hash(
+    NEW.at, NEW.session_id, NEW.principal_id, NEW.action_id,
+    NEW.decision, v_prev_hash
+  );
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER decision_log_chain
+  BEFORE INSERT ON decision_log
+  FOR EACH ROW
+  EXECUTE FUNCTION _decision_log_chain_trigger();
+
+-- Server-side session id minting (prevents session spoofing).
+CREATE OR REPLACE FUNCTION mint_session_id()
+RETURNS text
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = agent_policy
+AS $$
+DECLARE
+  id text;
+BEGIN
+  -- 256 bits of entropy from built-in primitives (no pgcrypto dependency):
+  -- two md5 digests (128 bits each) seeded with random() + clock + pid.
+  id := 'sess_'
+        || md5(random()::text || clock_timestamp()::text || pg_backend_pid()::text)
+        || md5(random()::text || now()::text);
+  RETURN id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION open_session_minted(
+  p_principal_type text DEFAULT 'agent',
+  p_principal_id text DEFAULT NULL,
+  p_attributes jsonb DEFAULT '{}'::jsonb
+) RETURNS text
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = agent_policy
+AS $$
+DECLARE
+  sid text;
+  pid text;
+BEGIN
+  sid := mint_session_id();
+  pid := coalesce(p_principal_id, current_user);
+  INSERT INTO sessions(session_id, principal_type, principal_id, attributes)
+  VALUES (sid, p_principal_type, pid, coalesce(p_attributes, '{}'::jsonb))
+  ON CONFLICT (session_id) DO UPDATE SET
+    last_seen_at = now(),
+    attributes = EXCLUDED.attributes;
+  RETURN sid;
+END;
+$$;
+
+-- Identity binding: trusted principal from the GUC (set by the gateway)
+-- or current_user when no agent principal is bound (admin mode).
+CREATE OR REPLACE FUNCTION get_current_principal()
+RETURNS text
+LANGUAGE sql
+STABLE
+SET search_path = agent_policy
+AS $$
+  SELECT coalesce(
+    nullif(current_setting('pg_agent_policy.principal_id', true), ''),
+    current_user
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION get_current_session()
+RETURNS text
+LANGUAGE sql
+STABLE
+SET search_path = agent_policy
+AS $$
+  SELECT nullif(current_setting('pg_agent_policy.session_id', true), '');
+$$;
+
+-- Atomic temporal semantics: check-then-record in one serializable
+-- transaction so concurrent calls serialize on the budget.
+CREATE OR REPLACE FUNCTION evaluate_atomic(
+  p_principal_type text,
+  p_principal_id text,
+  p_action_type text,
+  p_action_id text,
+  p_resource_type text DEFAULT '*',
+  p_resource_id text DEFAULT '*',
+  p_context jsonb DEFAULT '{}'::jsonb,
+  p_session_id text DEFAULT NULL,
+  p_raise_on_deny boolean DEFAULT false
+) RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = agent_policy
+AS $$
+DECLARE
+  v_result jsonb;
+  v_lock bigint;
+BEGIN
+  -- Serialize check-then-record per (principal, action) so two concurrent
+  -- calls cannot both observe budget-then-both-record (the RECORD_AFTER race
+  -- from the paper). An advisory transaction lock is held until commit, which
+  -- is stricter and more portable than flipping transaction_isolation inside
+  -- a function (that fails once a snapshot exists).
+  v_lock := hashtext(coalesce(p_principal_id,'*') || ':' ||
+                      coalesce(p_action_id,'*'))::bigint;
+  PERFORM pg_advisory_xact_lock(v_lock);
+  v_result := evaluate(
+    p_principal_type, p_principal_id, p_action_type, p_action_id,
+    p_resource_type, p_resource_id, p_context, p_session_id, p_raise_on_deny
+  );
+  RETURN v_result;
+END;
+$$;
+
+COMMENT ON FUNCTION evaluate_atomic(
+  text, text, text, text, text, text, jsonb, text, boolean
+) IS
+  'Atomic wrapper around evaluate(): serializes check-then-record per (principal,action) with an advisory transaction lock so concurrent calls cannot both observe budget then both record (the RECORD_AFTER race from the paper).';
+
+-- v0.2 settings.
+INSERT INTO settings(key, value) VALUES
+  ('hook_enabled', 'true'),
+  ('hook_log_only', 'false'),
+  ('extension_version', '0.2.0')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;

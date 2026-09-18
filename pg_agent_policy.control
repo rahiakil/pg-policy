@@ -1,6 +1,11 @@
 # pg_agent_policy extension
 comment = 'Agentic policy language for PostgreSQL — guardrails, guidance, and session-aware controls'
-default_version = '0.1.0'
+default_version = '0.2.0'
 relocatable = false
-schema = pg_agent_policy
+schema = agent_policy
 superuser = false
+# v0.2 ships a C module loaded via shared_preload_libraries.
+# The SQL-only install (0.1.0) remains available for managed clouds
+# that reject shared_preload_libraries; the hook (0.2.0) is for
+# self-hosted / CloudNativePG / RDS-custom where it is accepted.
+module_pathname = '$libdir/pg_agent_policy'

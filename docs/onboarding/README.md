@@ -15,7 +15,7 @@ Install → Identity → Baseline pack → Shadow → Domain pack → Honor obli
 
 ```sql
 CREATE EXTENSION pg_agent_policy;
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'log_only');  -- never start at enforce
+SELECT agent_policy.set_setting('enforcement_mode', 'log_only');  -- never start at enforce
 ```
 
 From a checkout:
@@ -43,7 +43,7 @@ Pick **stable strings**. Changing them later orphans logs.
 Open a session when the agent run starts:
 
 ```sql
-SELECT pg_agent_policy.open_session(
+SELECT agent_policy.open_session(
   'thread-abc',
   'agent',
   'langgraph:analytics',
@@ -68,7 +68,7 @@ execute_tool()
 
 Copy-paste adapters: [`integrations.md`](integrations.md) and [`examples/integrations/`](../../examples/integrations/).
 
-If you cannot wrap tools yet, you are **not ready for enforce**. Stay in `log_only` and sample `pg_agent_policy.decision_log`.
+If you cannot wrap tools yet, you are **not ready for enforce**. Stay in `log_only` and sample `agent_policy.decision_log`.
 
 ---
 
@@ -76,7 +76,7 @@ If you cannot wrap tools yet, you are **not ready for enforce**. Stay in `log_on
 
 ```sql
 SELECT at, principal_id, action_id, decision, reasons, obligations
-FROM pg_agent_policy.decision_log
+FROM agent_policy.decision_log
 ORDER BY at DESC
 LIMIT 50;
 ```
@@ -127,13 +127,13 @@ Until `max_rows` is enforced in the MCP, the policy is theater.
 
 ```sql
 -- only after: no surprise shadow_denies you disagree with
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
+SELECT agent_policy.set_setting('enforcement_mode', 'enforce');
 ```
 
 Rollback is one row:
 
 ```sql
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'log_only');
+SELECT agent_policy.set_setting('enforcement_mode', 'log_only');
 ```
 
 ---

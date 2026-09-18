@@ -7,6 +7,9 @@ tmp_check/
 log/
 !experiments/results/
 .deps/
+regression.diffs
+regression.out
+output/
 
 # Editor / OS
 .DS_Store

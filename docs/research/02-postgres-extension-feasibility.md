@@ -20,8 +20,8 @@
 | Intercept planning/execution | planner / executor hooks | Statement firewalls; rewrite; audit |
 | Background workers | BGWorker API | Session-budget reapers; async policy sync |
 | Custom types & operators | PGXS / pgrx | `agent_id`, policy decision types |
-| Functions / procedures | SQL, C, Rust | `pg_agent_policy.evaluate(...)` |
-| GUCs | `DefineCustom*Variable` | `pg_agent_policy.enforcement_mode` |
+| Functions / procedures | SQL, C, Rust | `agent_policy.evaluate(...)` |
+| GUCs | `DefineCustom*Variable` | `agent_policy.enforcement_mode` |
 | Shared preload | `_PG_init` | Register hooks early |
 | Catalog tables | extension scripts | Policy store, event log, obligations |
 
@@ -32,8 +32,8 @@
 ### 2.1 Function-first DSL (always ship this)
 
 ```sql
-SELECT pg_agent_policy.upsert($apl$ ... $apl$);
-SELECT pg_agent_policy.evaluate(
+SELECT agent_policy.upsert($apl$ ... $apl$);
+SELECT agent_policy.evaluate(
   principal := 'agent:research',
   action    := 'tool:execute_sql',
   resource  := 'table:public.orders',
@@ -64,7 +64,7 @@ For policy:
 -- Conceptual (hook-augmented) — options on known statements
 CREATE POLICY ...; -- still native RLS
 -- Plus extension catalog via functions:
-SELECT pg_agent_policy.attach_agent_guard('orders_select', 'agent:research');
+SELECT agent_policy.attach_agent_guard('orders_select', 'agent:research');
 ```
 
 Cannot invent `CREATE AGENT POLICY` as a core token without a fork.
@@ -96,7 +96,7 @@ PL/V8 / PL/Python policies are flexible but expand the attack surface. Prefer a 
 └───────────────────────────┬─────────────────────────────────┘
                             │ SQL / protocol
 ┌───────────────────────────▼─────────────────────────────────┐
-│ pg_agent_policy.evaluate / check / guide                          │
+│ agent_policy.evaluate / check / guide                          │
 │  • catalog policies                                         │
 │  • session event log                                        │
 │  • obligations (rate limit remaining, advice)               │

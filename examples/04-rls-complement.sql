@@ -17,7 +17,7 @@ CREATE POLICY tenant_isolation ON demo_orders
   WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
 
 -- Agent control plane: even with RLS, block export tool without approval flag
-SELECT pg_agent_policy.upsert_policy('export_needs_flag', $apl$
+SELECT agent_policy.upsert_policy('export_needs_flag', $apl$
 forbid
   principal agent "support_bot"
   action tool "export_csv"
@@ -25,9 +25,9 @@ forbid
   reason "CSV export requires approval context.approved=true"
 $apl$, 'Export approval gate', 10);
 
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
+SELECT agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_agent_policy.evaluate(
+SELECT agent_policy.evaluate(
   'agent', 'support_bot', 'tool', 'export_csv',
   'table', 'public.demo_orders',
   '{"approved":"false"}'::jsonb

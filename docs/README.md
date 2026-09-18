@@ -11,7 +11,7 @@ The industry-track paper lives in the sibling repo **[agentic-policy](https://gi
 - [README](../README.md)
 - [Install](../INSTALL.md)
 - [APL language](../doc/language.md)
-- [Extension guide](../doc/pg_agent_policy.md)
+- [Extension guide](../doc/agent_policy.md)
 - [Examples](../examples/)
 - [Policy packs](../doc/packs.md)
 - [Use cases](usecases/README.md)

@@ -12,7 +12,7 @@ psql -c "CREATE EXTENSION pg_agent_policy;"
 ## Quick start
 
 ```sql
-SELECT pg_agent_policy.upsert_policy('block_ddl', $apl$
+SELECT agent_policy.upsert_policy('block_ddl', $apl$
 forbid
   principal agent "research_bot"
   action tool "execute_sql"
@@ -20,9 +20,9 @@ forbid
   reason "Research agents may not run DDL"
 $apl$);
 
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
+SELECT agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_agent_policy.evaluate(
+SELECT agent_policy.evaluate(
   'agent', 'research_bot', 'tool', 'execute_sql',
   '*', '*', '{"statement_type":"DROP"}'::jsonb
 );

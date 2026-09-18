@@ -1,0 +1,44 @@
+-- v0.2 C-level hook enforcement (ProcessUtility_hook + ExecutorStart_hook)
+-- Proves the hook is non-bypassable: a connection that never calls
+-- evaluate() still hits the referee. Enforcement is active only when
+-- a principal is bound via the trusted GUC (agent session); admin
+-- sessions (no GUC) are not enforced.
+DROP EXTENSION IF EXISTS pg_agent_policy CASCADE;
+CREATE EXTENSION pg_agent_policy;
+SELECT agent_policy.set_setting('enforcement_mode', 'enforce');
+ set_setting 
+-------------
+ 
+(1 row)
+
+SELECT agent_policy.upsert_policy('block_ddl', $apl$
+forbid
+  principal agent "bot"
+  action tool "execute_sql"
+  when { context.statement_type in ["DROP","CREATE","ALTER","TRUNCATE"] }
+  reason "no ddl for agents"
+$apl$);
+ upsert_policy 
+---------------
+             1
+(1 row)
+
+-- 1. Admin mode (no principal GUC): DDL is allowed.
+CREATE TABLE admin_ok (id int);
+DROP TABLE admin_ok;
+-- 2. Agent mode: bind principal, CREATE is blocked by the hook.
+SET pg_agent_policy.principal_id = 'bot';
+CREATE TABLE agent_blocked (id int);
+ERROR:  pg_agent_policy: statement blocked by policy
+DETAIL:  statement_type=CREATE, principal=bot
+-- SET/RESET is infrastructure: not enforced, so the gateway can unbind.
+RESET pg_agent_policy.principal_id;
+-- 3. Shadow mode: hook logs denials but does not block.
+SET pg_agent_policy.hook_log_only = true;
+SET pg_agent_policy.principal_id = 'bot';
+CREATE TABLE shadow_ok (id int);
+RESET pg_agent_policy.principal_id;
+SET pg_agent_policy.hook_log_only = false;
+-- 4. After unbinding, admin DDL works again.
+CREATE TABLE admin_ok2 (id int);
+DROP TABLE admin_ok2;

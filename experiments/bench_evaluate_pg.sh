@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Measure pg_agent_policy.evaluate() wall time inside PostgreSQL (Docker).
+# Measure agent_policy.evaluate() wall time inside PostgreSQL (Docker).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -26,15 +26,15 @@ docker exec "$CONTAINER" pg_isready -U postgres
 tail -n +3 "$ROOT/sql/pg_agent_policy--0.1.0.sql" | docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 -q
 
 docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 -q <<'SQL'
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
-SELECT pg_agent_policy.upsert_policy('block_ddl', $apl$
+SELECT agent_policy.set_setting('enforcement_mode', 'enforce');
+SELECT agent_policy.upsert_policy('block_ddl', $apl$
 forbid
   principal agent "langgraph:analytics"
   action tool "execute_sql"
   when { context.statement_type in ["DROP", "TRUNCATE", "ALTER", "CREATE"] }
   reason "No DDL"
 $apl$);
-SELECT pg_agent_policy.open_session('bench-sess', 'agent', 'langgraph:analytics',
+SELECT agent_policy.open_session('bench-sess', 'agent', 'langgraph:analytics',
   '{"acting_for":"user:42","tenant_id":"acme"}'::jsonb);
 SQL
 
@@ -51,9 +51,9 @@ DECLARE
   p95 double precision;
   p99 double precision;
 BEGIN
-  DELETE FROM pg_agent_policy.policies WHERE name LIKE 'bench_pad_%';
+  DELETE FROM agent_policy.policies WHERE name LIKE 'bench_pad_%';
   FOR i IN 1..GREATEST(0, ${n} - 1) LOOP
-    PERFORM pg_agent_policy.upsert_policy('bench_pad_' || i, \$apl\$
+    PERFORM agent_policy.upsert_policy('bench_pad_' || i, \$apl\$
 forbid
   principal agent "pad:agent-" || i
   action tool "refund"
@@ -63,7 +63,7 @@ forbid
   END LOOP;
 
   FOR i IN 1..${WARMUP} LOOP
-    PERFORM pg_agent_policy.evaluate(
+    PERFORM agent_policy.evaluate(
       'agent','langgraph:analytics','tool','execute_sql','table','public.orders',
       '{"statement_type":"DROP","acting_for":"user:42","tenant_id":"acme"}'::jsonb,
       'bench-sess');
@@ -71,7 +71,7 @@ forbid
 
   FOR i IN 1..${ITERS} LOOP
     t0 := clock_timestamp();
-    PERFORM pg_agent_policy.evaluate(
+    PERFORM agent_policy.evaluate(
       'agent','langgraph:analytics','tool','execute_sql','table','public.orders',
       '{"statement_type":"DROP","acting_for":"user:42","tenant_id":"acme"}'::jsonb,
       'bench-sess');
@@ -102,9 +102,9 @@ DECLARE
   deltas double precision[] := '{}';
   p50 double precision; p95 double precision; p99 double precision;
 BEGIN
-  DELETE FROM pg_agent_policy.policies WHERE name LIKE 'bench_pad_%';
+  DELETE FROM agent_policy.policies WHERE name LIKE 'bench_pad_%';
   FOR i IN 1..GREATEST(0, ${n} - 1) LOOP
-    PERFORM pg_agent_policy.upsert_policy('bench_pad_' || i, \$apl\$
+    PERFORM agent_policy.upsert_policy('bench_pad_' || i, \$apl\$
 forbid
   principal agent "pad:agent-" || i
   action tool "refund"
@@ -113,12 +113,12 @@ forbid
 \$apl\$);
   END LOOP;
   FOR i IN 1..${WARMUP} LOOP
-    PERFORM pg_agent_policy.evaluate('agent','langgraph:analytics','tool','execute_sql','table','public.orders',
+    PERFORM agent_policy.evaluate('agent','langgraph:analytics','tool','execute_sql','table','public.orders',
       '{"statement_type":"DROP","acting_for":"user:42","tenant_id":"acme"}'::jsonb,'bench-sess');
   END LOOP;
   FOR i IN 1..${ITERS} LOOP
     t0 := clock_timestamp();
-    PERFORM pg_agent_policy.evaluate('agent','langgraph:analytics','tool','execute_sql','table','public.orders',
+    PERFORM agent_policy.evaluate('agent','langgraph:analytics','tool','execute_sql','table','public.orders',
       '{"statement_type":"DROP","acting_for":"user:42","tenant_id":"acme"}'::jsonb,'bench-sess');
     t1 := clock_timestamp();
     deltas := array_append(deltas, EXTRACT(EPOCH FROM (t1 - t0)) * 1000000.0);

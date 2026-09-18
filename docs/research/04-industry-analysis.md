@@ -126,7 +126,7 @@ Completed landscape of Cedar, Rego, CEL, Polar, Zanzibar/OpenFGA, Dogwood, RLS, 
 
 OpenID **AuthZEN Authorization API 1.0** standardizes PEP↔PDP JSON:
 
-| AuthZEN | pg_agent_policy.evaluate |
+| AuthZEN | agent_policy.evaluate |
 | --- | --- |
 | `subject.type` / `subject.id` | `p_principal_type` / `p_principal_id` |
 | `action.name` (plus properties) | `p_action_type` + `p_action_id` (split for tool taxonomy) |
@@ -150,7 +150,7 @@ The MCP Postgres landscape validates `pg_agent_policy`’s wedge:
 | Audit of denials | pgguard records refusals | Aligns with `decision_log` |
 | RLS + SET ROLE / JWT claims | pgguard / Supabase patterns | Keep RLS complement docs central |
 
-**Wedge narrative for MCP authors:** stop hard-coding row caps and tool allowlists in every MCP server—call `pg_agent_policy.evaluate` so policy lives next to RLS and survives gateway swaps.
+**Wedge narrative for MCP authors:** stop hard-coding row caps and tool allowlists in every MCP server—call `agent_policy.evaluate` so policy lives next to RLS and survives gateway swaps.
 
 Suggested starter policy pack (roadmap example):
 
@@ -185,7 +185,7 @@ Paper updated in **agentic-policy** (abstract, intro, survey, related work, thre
 
 - [x] Survey managed Postgres providers’ extension allowlist processes (initial pass: RDS, Neon, Supabase, Aiven/Crunchy, CNPG/OCI).
 - [ ] Benchmark CEL vs pure SQL IR for 10k evaluate/s.
-- [x] Map AuthZEN request fields to `pg_agent_policy.evaluate` JSON (sketch).
+- [x] Map AuthZEN request fields to `agent_policy.evaluate` JSON (sketch).
 - [x] Interview-style synthesis: MCP DB tool schemas (safe-postgres-mcp, pgguard, postgres-mcp, deprecated reference).
 - [ ] Track PGXN v2 trunk/OCI readiness for binary distribution.
 - [ ] Deep-dive `pg_tle` viability as alternate packaging for RDS-class hosts.

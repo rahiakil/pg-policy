@@ -9,7 +9,7 @@
 ```sql
 CREATE EXTENSION pg_agent_policy;
 
-SELECT pg_agent_policy.upsert_policy('block_ddl', $apl$
+SELECT agent_policy.upsert_policy('block_ddl', $apl$
 forbid
   principal agent "research_bot"
   action tool "execute_sql"
@@ -17,9 +17,9 @@ forbid
   reason "Research agents may not run DDL"
 $apl$);
 
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
+SELECT agent_policy.set_setting('enforcement_mode', 'enforce');
 
-SELECT pg_agent_policy.check(
+SELECT agent_policy.check_policy(
   'research_bot',
   'execute_sql',
   '{"statement_type":"DROP"}'::jsonb
@@ -55,7 +55,10 @@ Thorough research lives in [`docs/research/`](docs/research/).
 | **Graduated modes** | `log_only` → `guide` → `enforce` |
 | **Decision log** | Every evaluation audited |
 | **RLS complement** | Recipes that sit beside `CREATE POLICY` |
-| **SQL-only v0.1** | No compilers required to try it |
+| **Non-bypassable hook (v0.2)** | C-level `ProcessUtility_hook` + `ExecutorStart_hook` make skipping `evaluate()` impossible |
+| **Identity binding (v0.2)** | Trusted principal/session bound via superuser-only GUCs — agents can't spoof |
+| **Append-only audit (v0.2)** | `decision_log` is INSERT-only with a tamper-evident hash chain |
+| **Atomic temporal (v0.2)** | `evaluate_atomic()` serializes check-then-record so budgets can't be raced |
 
 > **Syntax note:** PostgreSQL does not allow extensions to add core SQL keywords. APL is additional *policy* syntax invoked from SQL via dollar-quoting—the portable, PGXN-friendly approach.
 
@@ -72,7 +75,33 @@ make install
 psql -d mydb -c "CREATE EXTENSION pg_agent_policy;"
 ```
 
-Requires PostgreSQL 14+ (tested target: 14–17) and a normal PGXS toolchain (`pg_config` on `PATH`).
+Requires PostgreSQL 15+ (the v0.2 C hooks use the PG15+ `ProcessUtility_hook` signature) and a normal PGXS toolchain (`pg_config` on `PATH`).
+
+#### Enable the non-bypassable hook (v0.2)
+
+The SQL-only API (`evaluate`, `check_policy`, …) works without any preload. To make enforcement **non-bypassable** — so a connection that never calls `evaluate()` still hits the referee — load the C module at startup:
+
+```bash
+# postgresql.conf
+shared_preload_libraries = 'pg_agent_policy'
+```
+
+Then in SQL:
+
+```sql
+-- Bind an authenticated agent principal (superuser only — agents can't spoof this):
+SET pg_agent_policy.principal_id = 'research_bot';
+
+-- Now every statement this connection issues is checked against APL,
+-- including DDL the agent never wraps in a tool call. Skipping
+-- evaluate() is no longer an escape hatch.
+```
+
+Shadow mode (log denials, don't block) for a safe rollout:
+
+```sql
+SET pg_agent_policy.hook_log_only = true;
+```
 
 ### Smoke test
 
@@ -86,9 +115,9 @@ psql -d mydb -f examples/01-basic-guardrails.sql
 
 ```sql
 -- Soft onboarding: observe only
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'log_only');
+SELECT agent_policy.set_setting('enforcement_mode', 'log_only');
 
-SELECT pg_agent_policy.upsert_policy('export_budget', $apl$
+SELECT agent_policy.upsert_policy('export_budget', $apl$
 forbid
   principal agent "research_bot"
   action tool "export_csv"
@@ -98,9 +127,9 @@ forbid
   reason "Export budget exceeded"
 $apl$);
 
-SELECT pg_agent_policy.open_session('sess-1', 'agent', 'research_bot');
+SELECT agent_policy.open_session('sess-1', 'agent', 'research_bot');
 
-SELECT pg_agent_policy.evaluate(
+SELECT agent_policy.evaluate(
   'agent', 'research_bot', 'tool', 'export_csv',
   '*', '*', '{}'::jsonb, 'sess-1'
 );
@@ -109,7 +138,7 @@ SELECT pg_agent_policy.evaluate(
 Promote to enforce after a shadow period:
 
 ```sql
-SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
+SELECT agent_policy.set_setting('enforcement_mode', 'enforce');
 ```
 
 ---
@@ -120,7 +149,7 @@ SELECT pg_agent_policy.set_setting('enforcement_mode', 'enforce');
 Agent / MCP gateway
         │
         ▼
- pg_agent_policy.evaluate(...)
+ agent_policy.evaluate(...)
         │
         ├─ match APL policies (permit/forbid/guide)
         ├─ evaluate context + temporal session events
@@ -141,7 +170,7 @@ Design decisions: [`docs/design/`](docs/design/) · ADRs: [`docs/adr/`](docs/adr
 | Doc | Contents |
 | --- | --- |
 | [APL language](doc/language.md) | Syntax reference |
-| [Extension guide](doc/pg_agent_policy.md) | Install & concepts |
+| [Extension guide](doc/agent_policy.md) | Install & concepts |
 | [Policy landscape](docs/research/01-policy-language-landscape.md) | Cedar, Rego, CEL, Zanzibar, Dogwood, RLS, … |
 | [Extension feasibility](docs/research/02-postgres-extension-feasibility.md) | Hooks, PGXS, packaging |
 | [Agentic guardrails](docs/research/03-agentic-ai-guardrails.md) | Guardrail vs guidance |
@@ -175,7 +204,11 @@ Design decisions: [`docs/design/`](docs/design/) · ADRs: [`docs/adr/`](docs/adr
 
 ## Status
 
-**v0.1.0** — research-backed SQL/PL/pgSQL MVP suitable for experimentation and API feedback. Not yet a hardened production security boundary; use with RLS, least-privilege roles, and a tool gateway. See [SECURITY.md](SECURITY.md).
+**v0.2.0** — adds the C-level hooks (`ProcessUtility_hook` + `ExecutorStart_hook`) that make `pg_agent_policy` a **non-bypassable** Plane-B firewall: a connection that never calls `evaluate()` still hits the referee. v0.2 also hardens identity binding (superuser-only GUCs), append-only audit (INSERT-only `decision_log` with a tamper-evident hash chain), and atomic temporal semantics (`evaluate_atomic()` serializes check-then-record so budgets can't be raced).
+
+**v0.1.0** was the SQL/PL/pgSQL MVP. The SQL-only install path remains available for managed clouds that reject `shared_preload_libraries`; the hook (v0.2) is for self-hosted / CloudNativePG / RDS-custom where it is accepted.
+
+Not yet a hardened production security boundary on its own; use with RLS, least-privilege roles, and a tool gateway. See [SECURITY.md](SECURITY.md).
 
 Roadmap highlights: pgrx-accelerated evaluator, CEL/Cedar condition backends, AuthZEN mapping, PGXN release, managed-provider packaging.
 

@@ -19,7 +19,7 @@ Build **`pg_agent_policy`**, a PostgreSQL extension that provides an **Agent Pol
 Cedar/Dogwood-inspired vocabulary (`permit`, `forbid`, `guide`, `when`, temporal windows) authored inside dollar-quoted documents and managed via SQL functions:
 
 ```sql
-SELECT pg_agent_policy.upsert_policy('research_guard', $apl$
+SELECT agent_policy.upsert_policy('research_guard', $apl$
 forbid
   principal agent "research_bot"
   action tool "execute_sql"
@@ -36,7 +36,7 @@ $apl$);
 | `log_only` | Always allow side; log would-deny |
 | `guide` | Never hard-deny; return obligations/advice |
 
-GUC: `pg_agent_policy.enforcement_mode`
+GUC: `agent_policy.enforcement_mode`
 
 ## Syntax strategy
 

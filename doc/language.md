@@ -1,6 +1,6 @@
 # Agent Policy Language (APL)
 
-APL is the policy syntax shipped by **pg_agent_policy**. Documents are stored as text and compiled by `pg_agent_policy.parse_apl` / `pg_agent_policy.upsert_policy`.
+APL is the policy syntax shipped by **pg_agent_policy**. Documents are stored as text and compiled by `agent_policy.parse_apl` / `agent_policy.upsert_policy`.
 
 > PostgreSQL extensions cannot add keywords to core SQL. APL is the extension’s language, invoked from SQL.
 
@@ -93,7 +93,7 @@ forbid
 ## Evaluation API
 
 ```sql
-SELECT pg_agent_policy.evaluate(
+SELECT agent_policy.evaluate(
   p_principal_type := 'agent',
   p_principal_id   := 'research_bot',
   p_action_type    := 'tool',

@@ -13,7 +13,7 @@ evaluate(principal_type, principal_id, action_type, action_id,
 ## 1. Raw SQL / any driver
 
 ```sql
-SELECT pg_agent_policy.evaluate(
+SELECT agent_policy.evaluate(
   'agent',
   'langgraph:analytics',
   'tool',

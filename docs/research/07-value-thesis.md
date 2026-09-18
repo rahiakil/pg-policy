@@ -82,7 +82,7 @@ LangGraph’s production pattern is `PostgresSaver` for graph checkpoints. CrewA
 
 ### 3.4 Regulation now expects an agent control plane
 
-EU AI Act Article 12 (high-risk logging; widely cited full-enforcement milestone August 2026), GDPR accountability, HIPAA unique-user identification, SOC 2 monitoring, ISO/IEC 42001: logs must be structured, attributed (human + agent), correlated by session, and not “the LLM’s service account did something.” `pg_agent_policy.decision_log` + `sessions` + `events` are the database-shaped answer.
+EU AI Act Article 12 (high-risk logging; widely cited full-enforcement milestone August 2026), GDPR accountability, HIPAA unique-user identification, SOC 2 monitoring, ISO/IEC 42001: logs must be structured, attributed (human + agent), correlated by session, and not “the LLM’s service account did something.” `agent_policy.decision_log` + `sessions` + `events` are the database-shaped answer.
 
 ---
 
@@ -109,7 +109,7 @@ Not one mega-policy. A **universal kernel** plus **packs**:
 4. **Packs** — domain SQL you load in minutes (analytics, support, fintech, healthcare, devops, multi-agent)
 5. **Adapters** — 15-line middleware for MCP / LangGraph / any HTTP PEP
 
-If your agent can run SQL, it can call `pg_agent_policy.evaluate`. That is the compatibility story: **SQL is the lingua franca**, not another SDK.
+If your agent can run SQL, it can call `agent_policy.evaluate`. That is the compatibility story: **SQL is the lingua franca**, not another SDK.
 
 ---
 
