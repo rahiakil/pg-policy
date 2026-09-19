@@ -31,6 +31,7 @@
 #define GUC_SESSION_ID     "pg_agent_policy.session_id"
 #define GUC_ENFORCE_HOOK   "pg_agent_policy.hook_enabled"
 #define GUC_LOG_ONLY_HOOK  "pg_agent_policy.hook_log_only"
+#define GUC_ADMIN_BYPASS   "pg_agent_policy.hook_admin_bypass"
 
 /*
  * statement_class values derived from the AST, never from caller JSON.

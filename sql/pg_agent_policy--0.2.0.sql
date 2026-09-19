@@ -574,6 +574,7 @@ CREATE OR REPLACE FUNCTION evaluate(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = agent_policy
 AS $$
 DECLARE
@@ -592,6 +593,19 @@ BEGIN
   mode := coalesce(get_setting('enforcement_mode'), 'log_only');
   default_decision := coalesce(get_setting('default_decision'), 'deny');
   decision := default_decision;
+
+  -- Identity binding: if the trusted GUC is set (by a superuser at login
+  -- or as a role-level ALTER ROLE ... SET default), it OVERRIDES the
+  -- caller-supplied principal/session so an agent cannot spoof another
+  -- identity by passing a different argument. This is what makes the
+  -- v0.2 anti-spoofing boundary hold for BOTH hook-driven and direct
+  -- evaluate() calls.
+  IF get_current_principal() IS NOT NULL THEN
+    p_principal_id := get_current_principal();
+  END IF;
+  IF get_current_session() IS NOT NULL THEN
+    p_session_id := get_current_session();
+  END IF;
 
   FOR rec IN
     SELECT *
@@ -843,10 +857,7 @@ LANGUAGE sql
 STABLE
 SET search_path = agent_policy
 AS $$
-  SELECT coalesce(
-    nullif(current_setting('pg_agent_policy.principal_id', true), ''),
-    current_user
-  );
+  SELECT nullif(current_setting('pg_agent_policy.principal_id', true), '');
 $$;
 
 CREATE OR REPLACE FUNCTION get_current_session()
@@ -905,3 +916,17 @@ INSERT INTO settings(key, value) VALUES
   ('hook_log_only', 'false'),
   ('extension_version', '0.2.0')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- Administrative plane: only the extension owner (a superuser / DBA) may
+-- mutate policy, change settings, mint session ids, or run the atomic
+-- evaluator. PostgreSQL grants EXECUTE on functions to PUBLIC by default;
+-- without these REVOKEs any non-superuser role could rewrite policy or
+-- mint its own sessions, defeating the control. A DBA grants these to a
+-- dedicated gateway/admin role explicitly. evaluate() stays callable by
+-- PUBLIC (the hook invokes it via SPI as the session role, and identity
+-- is GUC-bound so a direct call cannot spoof). These must come AFTER the
+-- function definitions.
+REVOKE EXECUTE ON FUNCTION upsert_policy(text, text, text, integer, boolean) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION set_setting(text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION mint_session_id() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION evaluate_atomic(text, text, text, text, text, text, jsonb, text, boolean) FROM PUBLIC;

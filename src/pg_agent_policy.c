@@ -33,6 +33,7 @@ PG_MODULE_MAGIC;
 
 static bool hook_enabled = true;
 static bool hook_log_only = false;
+static bool guc_admin_bypass = false;	/* explicit non-superuser admin escape hatch */
 
 /* Identity-binding GUCs (PGC_SUSET). */
 static char *guc_principal_id = NULL;
@@ -205,17 +206,33 @@ pgap_ProcessUtility(PlannedStmt *pstmt, const char *queryString,
 			(nodeTag(pstmt->utilityStmt) == T_VariableSetStmt ||
 			 nodeTag(pstmt->utilityStmt) == T_TransactionStmt))
 			is_infra = true;
-		/* Admin mode (no principal bound) or infra: do not enforce. */
-		if (ready && principal_id != NULL && !is_infra)
-			allowed = pgap_evaluate_internal(
-				principal_id, session_id, "execute_sql",
-				stmt_type, "*", "*", false);
+		/*
+		 * Fail-closed enforcement. A non-superuser connection with no
+		 * bound principal is BLOCKED, not allowed. This is the primary
+		 * threat (actor class 2): an attacker with a leaked DSN who
+		 * bypasses the trusted PEP gets no principal and therefore no
+		 * enforcement -- unless we fail closed. Superusers are out of
+		 * scope and may manage the extension; hook_admin_bypass is the
+		 * explicit escape hatch for non-superuser admin tooling.
+		 */
+		if (ready && !is_infra)
+		{
+			if (principal_id != NULL)
+				allowed = pgap_evaluate_internal(
+					principal_id, session_id, "execute_sql",
+					stmt_type, "*", "*", false);
+			else if (guc_admin_bypass || superuser_arg(GetUserId()))
+				allowed = true;		/* explicit admin / superuser */
+			else
+				allowed = false;	/* FAIL-CLOSED: no principal, not admin */
+		}
 		if (!allowed && !hook_log_only)
 			ereport(ERROR,
 					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 					 errmsg("pg_agent_policy: statement blocked by policy"),
 					 errdetail("statement_type=%s, principal=%s",
-								stmt_type, principal_id)));
+							   stmt_type,
+							   principal_id ? principal_id : "(unbound)")));
 
 		pfree(stmt_type);
 		if (principal_id) pfree(principal_id);
@@ -263,17 +280,25 @@ pgap_ExecutorStart(QueryDesc *queryDesc, int eflags)
 			(nodeTag(pstmt->utilityStmt) == T_VariableSetStmt ||
 			 nodeTag(pstmt->utilityStmt) == T_TransactionStmt))
 			is_infra = true;
-		/* Admin mode (no principal bound) or infra: do not enforce. */
-		if (ready && principal_id != NULL && !is_infra)
-			allowed = pgap_evaluate_internal(
-				principal_id, session_id, "execute_sql",
-				stmt_type, "*", "*", false);
+		/* Fail-closed: see pgap_ProcessUtility for the rationale. */
+		if (ready && !is_infra)
+		{
+			if (principal_id != NULL)
+				allowed = pgap_evaluate_internal(
+					principal_id, session_id, "execute_sql",
+					stmt_type, "*", "*", false);
+			else if (guc_admin_bypass || superuser_arg(GetUserId()))
+				allowed = true;		/* explicit admin / superuser */
+			else
+				allowed = false;	/* FAIL-CLOSED: no principal, not admin */
+		}
 		if (!allowed && !hook_log_only)
 			ereport(ERROR,
 					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 					 errmsg("pg_agent_policy: statement blocked by policy"),
 					 errdetail("statement_type=%s, principal=%s",
-								stmt_type, principal_id)));
+							   stmt_type,
+							   principal_id ? principal_id : "(unbound)")));
 
 		pfree(stmt_type);
 		if (principal_id) pfree(principal_id);
@@ -299,15 +324,20 @@ _PG_init(void)
 {
 	/*
 	 * Identity-binding GUCs. These are PGC_SUSET so only a superuser
-	 * (the trusted tool gateway / MCP broker) can SET them after it
-	 * has authenticated an agent. A non-superuser agent connection
-	 * cannot spoof principal_id or session_id -- this is the core of
-	 * the v0.2 anti-spoofing boundary.
+	 * (the trusted tool gateway / MCP broker) can SET them at runtime,
+	 * or a superuser can pin them as role-level defaults via
+	 * ALTER ROLE <agent_role> SET pg_agent_policy.principal_id = '...'.
+	 * A non-superuser agent connection cannot spoof principal_id or
+	 * session_id -- this is the core of the v0.2 anti-spoofing boundary.
+	 * The hook is FAIL-CLOSED: a non-superuser session with no bound
+	 * principal is blocked, not allowed (hook_admin_bypass is the
+	 * explicit escape hatch for non-superuser admin tooling).
 	 */
 	DefineCustomStringVariable(GUC_PRINCIPAL_ID,
 		"Agent principal bound to this session by the trusted gateway.",
-		"Set by a superuser after authenticating the agent. When unset, "
-		"the hook runs in admin mode and does not enforce.",
+		"Set by a superuser after authenticating the agent, or pinned "
+		"as a role-level default. When unset on a non-superuser session, "
+		"the hook fails closed (blocks) unless hook_admin_bypass is set.",
 		&guc_principal_id, NULL, PGC_SUSET, 0, NULL, NULL, NULL);
 
 	DefineCustomStringVariable(GUC_SESSION_ID,
@@ -327,6 +357,14 @@ _PG_init(void)
 		"Superuser-settable so ops can roll out enforcement in shadow "
 		"mode per session before flipping to blocking.",
 		&hook_log_only, false, PGC_SUSET, 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable(GUC_ADMIN_BYPASS,
+		"Explicit admin escape hatch for non-superuser sessions.",
+		"When true, a non-superuser session with no bound principal is "
+		"allowed (admin/management tooling). Default false: the hook "
+		"fails closed for unbound non-superuser sessions. Superusers "
+		"always bypass. Superuser-settable.",
+		&guc_admin_bypass, false, PGC_SUSET, 0, NULL, NULL, NULL);
 
 	prev_ProcessUtility = ProcessUtility_hook;
 	ProcessUtility_hook = pgap_ProcessUtility;

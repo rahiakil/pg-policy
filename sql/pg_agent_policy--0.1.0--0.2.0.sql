@@ -174,10 +174,7 @@ LANGUAGE sql
 STABLE
 SET search_path = agent_policy
 AS $$
-  SELECT coalesce(
-    nullif(current_setting('pg_agent_policy.principal_id', true), ''),
-    current_user
-  );
+  SELECT nullif(current_setting('pg_agent_policy.principal_id', true), '');
 $$;
 
 -- get_current_session: return the trusted session id from the GUC,
@@ -304,3 +301,150 @@ INSERT INTO agent_policy.settings(key, value) VALUES
   ('hook_log_only', 'false'),
   ('extension_version', '0.2.0')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+--------------------------------------------------------------------------------
+-- 9. Identity binding inside evaluate() + administrative REVOKEs
+--------------------------------------------------------------------------------
+
+-- Replace evaluate() so the trusted GUC (set by a superuser at login or
+-- pinned via ALTER ROLE ... SET) OVERRIDES the caller-supplied principal
+-- and session. Without this, an agent that calls evaluate() directly
+-- could pass another principal_id and inherit its permits (the spoof
+-- attack from the paper). get_current_principal/get_current_session
+-- (defined above in section 5) read the GUC.
+CREATE OR REPLACE FUNCTION agent_policy.evaluate(
+  p_principal_type text,
+  p_principal_id text,
+  p_action_type text,
+  p_action_id text,
+  p_resource_type text DEFAULT '*',
+  p_resource_id text DEFAULT '*',
+  p_context jsonb DEFAULT '{}'::jsonb,
+  p_session_id text DEFAULT NULL,
+  p_raise_on_deny boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = agent_policy
+AS $$
+DECLARE
+  mode text;
+  default_decision text;
+  rec record;
+  matched text[] := ARRAY[]::text[];
+  reasons text[] := ARRAY[]::text[];
+  obligations jsonb := '[]'::jsonb;
+  decision text;
+  effective_mode text;
+  has_forbid boolean := false;
+  has_permit boolean := false;
+  has_guide boolean := false;
+BEGIN
+  mode := coalesce(get_setting('enforcement_mode'), 'log_only');
+  default_decision := coalesce(get_setting('default_decision'), 'deny');
+  decision := default_decision;
+
+  IF agent_policy.get_current_principal() IS NOT NULL THEN
+    p_principal_id := agent_policy.get_current_principal();
+  END IF;
+  IF agent_policy.get_current_session() IS NOT NULL THEN
+    p_session_id := agent_policy.get_current_session();
+  END IF;
+
+  FOR rec IN
+    SELECT *
+    FROM agent_policy.policies p
+    WHERE p.enabled
+      AND agent_policy._glob_match(p.principal_type, p_principal_type)
+      AND agent_policy._glob_match(p.principal_id, p_principal_id)
+      AND agent_policy._glob_match(p.action_type, p_action_type)
+      AND agent_policy._glob_match(p.action_id, p_action_id)
+      AND agent_policy._glob_match(p.resource_type, coalesce(p_resource_type, '*'))
+      AND agent_policy._glob_match(p.resource_id, coalesce(p_resource_id, '*'))
+      AND agent_policy._condition_holds(p.condition, coalesce(p_context, '{}'::jsonb))
+      AND agent_policy._temporal_holds(p_session_id, p.temporal)
+    ORDER BY p.priority ASC, p.policy_id ASC
+  LOOP
+    matched := matched || rec.name;
+    IF rec.reason IS NOT NULL THEN
+      reasons := reasons || rec.reason;
+    END IF;
+    obligations := obligations || coalesce(rec.obligations, '[]'::jsonb);
+
+    IF rec.effect = 'forbid' THEN
+      has_forbid := true;
+    ELSIF rec.effect = 'permit' THEN
+      has_permit := true;
+    ELSIF rec.effect = 'guide' THEN
+      has_guide := true;
+    END IF;
+  END LOOP;
+
+  IF has_forbid THEN
+    decision := 'deny';
+  ELSIF has_permit THEN
+    decision := 'allow';
+  ELSIF has_guide THEN
+    decision := 'allow';
+  END IF;
+
+  effective_mode := mode;
+
+  IF decision = 'deny' THEN
+    IF mode = 'log_only' THEN
+      decision := 'allow';
+      obligations := obligations || jsonb_build_array(
+        jsonb_build_object('type', 'shadow_deny', 'value', true)
+      );
+    ELSIF mode = 'guide' THEN
+      decision := 'allow';
+      obligations := obligations || jsonb_build_array(
+        jsonb_build_object('type', 'would_deny', 'value', true)
+      );
+    END IF;
+  END IF;
+
+  INSERT INTO agent_policy.decision_log(
+    session_id, principal_type, principal_id, action_type, action_id,
+    resource_type, resource_id, context, decision, matched_policies,
+    obligations, reasons, mode
+  ) VALUES (
+    p_session_id, p_principal_type, p_principal_id, p_action_type, p_action_id,
+    p_resource_type, p_resource_id, coalesce(p_context, '{}'::jsonb),
+    decision, matched, obligations, reasons, effective_mode
+  );
+
+  IF p_session_id IS NOT NULL THEN
+    PERFORM agent_policy.record_event(
+      p_session_id, p_action_type, p_action_id,
+      p_resource_type, p_resource_id, p_context, decision
+    );
+  END IF;
+
+  IF p_raise_on_deny AND decision = 'deny' AND mode = 'enforce' THEN
+    RAISE EXCEPTION 'pg_agent_policy deny: %', coalesce(array_to_string(reasons, '; '), 'forbidden')
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'decision', decision,
+    'allowed', decision = 'allow',
+    'matched_policies', to_jsonb(matched),
+    'obligations', obligations,
+    'reasons', to_jsonb(reasons),
+    'mode', effective_mode
+  );
+END;
+$$;
+
+-- Administrative plane: only the extension owner (superuser / DBA) may mutate
+-- policy, change settings, mint session ids, or run the atomic evaluator.
+-- PostgreSQL grants EXECUTE to PUBLIC by default; without these REVOKEs any
+-- non-superuser role could rewrite policy or mint its own sessions.
+-- evaluate() stays callable by PUBLIC (the hook invokes it via SPI as the
+-- session role, and identity is GUC-bound so a direct call cannot spoof).
+REVOKE EXECUTE ON FUNCTION agent_policy.upsert_policy(text, text, text, integer, boolean) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION agent_policy.set_setting(text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION agent_policy.mint_session_id() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION agent_policy.evaluate_atomic(text, text, text, text, text, text, jsonb, text, boolean) FROM PUBLIC;

@@ -58,6 +58,10 @@ LIMIT 1;
 
 -- Attempt to DELETE should fail (append-only) as a non-superuser.
 \set VERBOSITY terse
+-- Shadow mode for this section: we are testing the SQL-level REVOKE
+-- (append-only), not the C hook. With the hook in shadow mode the
+-- statement proceeds to the REVOKE, which raises insufficient_privilege.
+SET pg_agent_policy.hook_log_only = true;
 SET SESSION AUTHORIZATION agent_app;
 DO $$
 BEGIN
@@ -77,6 +81,7 @@ EXCEPTION WHEN insufficient_privilege THEN
 END $$;
 NOTICE:  update_blocked
 RESET SESSION AUTHORIZATION;
+SET pg_agent_policy.hook_log_only = false;
 -- 2. Server-side session minting ------------------------------------------
 SELECT agent_policy.mint_session_id() ~ '^sess_[0-9a-f]{64}$' AS minted_id_format;
  minted_id_format 
@@ -92,9 +97,9 @@ SELECT agent_policy.open_session_minted('agent', 'bot', '{}'::jsonb) ~ '^sess_' 
 (1 row)
 
 -- 3. Identity binding -----------------------------------------------------
-SELECT agent_policy.get_current_principal() = current_user AS principal_bound;
- principal_bound 
------------------
+SELECT agent_policy.get_current_principal() IS NULL AS principal_unbound;
+ principal_unbound 
+-------------------
  t
 (1 row)
 
